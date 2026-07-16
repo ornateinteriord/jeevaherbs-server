@@ -20,12 +20,17 @@ const app = express();
 // ======================================================
 //        🛡️ CORS CONFIG (Supports Vite + ngrok)
 // ======================================================
+const envOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  ...envOrigins,
   "https://mscs-beige.vercel.app",
   "https://biccsl.vercel.app",
   "https://vgk-club-ui.vercel.app",
-].filter(Boolean);
+];
 
 app.use(
   cors({
