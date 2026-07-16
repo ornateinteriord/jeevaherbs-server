@@ -291,7 +291,17 @@ const updateMemberStatus = async (req, res) => {
     }
 
     const oldStatus = existingMember.status;
-    const updatedMember = await MemberModel.findOneAndUpdate(query, { status }, { new: true });
+
+    let updateData = { status };
+
+    // Automatically assign a 5000 package when activated by admin
+    if (oldStatus !== "active" && status === "active") {
+      updateData.spackage = "Package 5000";
+      updateData.package_value = 5000;
+      updateData.activationDate = new Date();
+    }
+
+    const updatedMember = await MemberModel.findOneAndUpdate(query, updateData, { new: true });
 
     // If status changed to active (from any status) trigger MLM commissions
     if (oldStatus !== "active" && status === "active") {
