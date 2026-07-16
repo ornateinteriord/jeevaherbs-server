@@ -27,6 +27,8 @@ const envOrigins = (process.env.FRONTEND_URL || "")
 
 const allowedOrigins = [
   ...envOrigins,
+  "https://jeevaherbs-ui.vercel.app",
+  "https://www.jeevaherbs.com",
   "https://mscs-beige.vercel.app",
   "https://biccsl.vercel.app",
   "https://vgk-club-ui.vercel.app",
