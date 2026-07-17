@@ -100,8 +100,8 @@ const findUplineSponsors = async (memberId, maxLevels = 5) => {
  */
 const calculateCommissions = async (newMemberId, directSponsorId) => {
   try {
-    // Find all upline sponsors up to 10 levels
-    const uplineSponsors = await findUplineSponsors(newMemberId, 10);
+    // Find all upline sponsors up to 5 levels
+    const uplineSponsors = await findUplineSponsors(newMemberId, 5);
 
     if (uplineSponsors.length === 0) {
       // console.log(`⚠️ No upline sponsors found for member ${newMemberId}`);
@@ -130,7 +130,7 @@ const calculateCommissions = async (newMemberId, directSponsorId) => {
           sponsored_member_id: upline.sponsored_member_id,
           new_member_id: newMemberId,
           amount: commissionAmount,
-          payout_type: `${getOrdinal(upline.level)} Level Benefits`,
+          payout_type: upline.level === 1 ? "Direct Income" : "Level Income",
           description: `Level ${upline.level} commission from new member ${newMemberId}`,
           sponsor_status: upline.sponsor_status
         });
@@ -180,7 +180,12 @@ const processCommissions = async (commissions) => {
         }
 
         // Generate unique payout ID
-        const payoutId = Date.now() + Math.floor(Math.random() * 1000) + commission.level;
+        const lastPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
+        let pId = 1;
+        if (lastPayout && lastPayout.payout_id) {
+          pId = (parseInt(lastPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0) + 1;
+        }
+        const payoutId = `PAY-${pId.toString().padStart(6, '0')}`;
 
         // Create payout record
         const payout = new PayoutModel({
@@ -260,9 +265,10 @@ const createLevelBenefitsTransaction = async (transactionData) => {
       const lastIdNumber = parseInt(lastTransaction.transaction_id.replace(/\D/g, ""), 10) || 0;
       newTransactionId = lastIdNumber + 1;
     }
+    const formattedTxId = `TXN-${newTransactionId.toString().padStart(6, '0')}`;
 
     const transaction = new TransactionModel({
-      transaction_id: newTransactionId.toString(),
+      transaction_id: formattedTxId,
       transaction_date: new Date(),
       member_id: memberId,
       reference_no: payout_id.toString(),

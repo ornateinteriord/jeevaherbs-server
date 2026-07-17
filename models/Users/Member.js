@@ -42,6 +42,7 @@ const MemberSchema = new mongoose.Schema(
     roi_status: { type: String },
     roi_days_completed: { type: Number, default: 0 },
     last_roi_date: { type: Date },
+    global_pool_id: { type: Number, default: 0 },
     upgrade_package: { type: String },
     upgrade_status: {
       type: String,

@@ -334,7 +334,7 @@ const updateMemberStatus = async (req, res) => {
           date: new Date().toISOString(),
           memberId: updatedMember.Member_id,
           payout_type: "Daily ROI",
-          amount: 50,
+          amount: 0,
           count: 0,
           days: 100,
           status: "Completed",
@@ -356,13 +356,71 @@ const updateMemberStatus = async (req, res) => {
           member_id: updatedMember.Member_id,
           description: "Initial ROI Setup",
           transaction_type: "Daily ROI",
-          ew_credit: 50,
+          ew_credit: 0,
           ew_debit: 0,
           status: "Completed",
-          net_amount: 50,
-          gross_amount: 50
+          net_amount: 0,
+          gross_amount: 0
         });
         await newTx.save();
+
+        // --- GLOBAL INCOME (AUTOPOOL) LOGIC ---
+        // 1. Assign global_pool_id to the newly active member
+        const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
+        const maxPoolId = memberWithMaxPoolId && memberWithMaxPoolId.global_pool_id ? memberWithMaxPoolId.global_pool_id : 0;
+        const newPoolId = maxPoolId + 1;
+        
+        updatedMember.global_pool_id = newPoolId;
+        await updatedMember.save();
+
+        // 2. Check if this activation triggers a Global Income payout
+        if (newPoolId >= 5) {
+          const winnerId = newPoolId - 4;
+          const winner = await MemberModel.findOne({ global_pool_id: winnerId }).exec();
+          
+          if (winner) {
+            // Generate IDs
+            const lastGlobalPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
+            let gPayoutId = 1;
+            if (lastGlobalPayout && lastGlobalPayout.payout_id) {
+              gPayoutId = (parseInt(lastGlobalPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0) + 1;
+            }
+            
+            const globalPayout = new PayoutModel({
+              payout_id: `PAY-${gPayoutId.toString().padStart(6, '0')}`,
+              date: new Date().toISOString(),
+              memberId: winner.Member_id,
+              payout_type: "Global Income",
+              amount: 1000,
+              count: 1,
+              days: 1,
+              status: "Completed",
+              description: `Global Income from User ${newPoolId}`
+            });
+            await globalPayout.save();
+
+            const lastGlobalTx = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
+            let gTxId = 1;
+            if (lastGlobalTx && lastGlobalTx.transaction_id) {
+              gTxId = (parseInt(lastGlobalTx.transaction_id.replace(/\D/g, ""), 10) || 0) + 1;
+            }
+            
+            const globalTx = new TransactionModel({
+              transaction_id: `TXN-${gTxId.toString().padStart(6, '0')}`,
+              transaction_date: new Date(),
+              member_id: winner.Member_id,
+              description: `Global Income Payout (Triggered by Pool ID ${newPoolId})`,
+              transaction_type: "Global Income",
+              ew_credit: 1000,
+              ew_debit: 0,
+              status: "Completed",
+              net_amount: 1000,
+              gross_amount: 1000
+            });
+            await globalTx.save();
+          }
+        }
+        // --- END GLOBAL INCOME LOGIC ---
 
         return res.status(200).json({
           success: true,
