@@ -44,20 +44,16 @@ const getWalletOverview = async (req, res) => {
 
     const levelBenefits = nonLoanTransactions
       .filter(tx => 
-        (tx.transaction_type === "Level benefits" || 
-        tx.description === "Level benefits" ||
-        tx.transaction_type === "Level Benefits" || 
-        tx.description === "Level Benefits") &&
+        (tx.transaction_type?.toLowerCase() === "level income" || 
+        tx.description?.toLowerCase() === "level income") &&
         tx.status === "Completed"
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
 
     const directBenefits = nonLoanTransactions
       .filter(tx => 
-        (tx.transaction_type === "Direct Benefits" || 
-        tx.description === "Direct Benefits" ||
-        tx.transaction_type === "Direct benefits" || 
-        tx.description === "Direct benefits") &&
+        (tx.transaction_type?.toLowerCase() === "direct income" || 
+        tx.description?.toLowerCase() === "direct income") &&
         tx.status === "Completed"
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
