@@ -317,6 +317,53 @@ const updateMemberStatus = async (req, res) => {
           json: (data) => data
         });
 
+        // Initialize Day 0 ROI Payout & Transaction
+        const PayoutModel = require("../../../models/Payout/Payout");
+        const TransactionModel = require("../../../models/Transaction/Transaction");
+
+        const lastPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
+        let newPayoutId = 1;
+        if (lastPayout && lastPayout.payout_id) {
+          const lastPayoutIdNumber = parseInt(lastPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0;
+          newPayoutId = lastPayoutIdNumber + 1;
+        }
+        const formattedPayoutId = `PAY-${newPayoutId.toString().padStart(6, '0')}`;
+
+        const newPayout = new PayoutModel({
+          payout_id: formattedPayoutId,
+          date: new Date().toISOString(),
+          memberId: updatedMember.Member_id,
+          payout_type: "Daily ROI",
+          amount: 50,
+          count: 0,
+          days: 100,
+          status: "Completed",
+          description: "Initial ROI Setup"
+        });
+        await newPayout.save();
+
+        const lastTransaction = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
+        let newTxId = 1;
+        if (lastTransaction && lastTransaction.transaction_id) {
+          const lastIdNumber = parseInt(lastTransaction.transaction_id.replace(/\D/g, ""), 10) || 0;
+          newTxId = lastIdNumber + 1;
+        }
+        const formattedTxId = `TXN-${newTxId.toString().padStart(6, '0')}`;
+        
+        const newTx = new TransactionModel({
+          transaction_id: formattedTxId,
+          transaction_date: new Date(),
+          member_id: updatedMember.Member_id,
+          description: "Initial ROI Setup",
+          transaction_type: "Daily ROI",
+          ew_credit: 50,
+          ew_debit: 0,
+          status: "Completed",
+          net_amount: 50,
+          gross_amount: 50
+        });
+        await newTx.save();
+
         return res.status(200).json({
           success: true,
           message: "Member status updated to active",

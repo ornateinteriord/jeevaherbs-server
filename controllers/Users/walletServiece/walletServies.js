@@ -73,6 +73,23 @@ const getWalletOverview = async (req, res) => {
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
 
+    const dailyRoi = nonLoanTransactions
+      .filter(tx => 
+        (tx.transaction_type?.toLowerCase() === "daily roi" || 
+        tx.description?.toLowerCase() === "daily roi" || 
+        tx.transaction_type?.toLowerCase() === "roi") &&
+        tx.status === "Completed"
+      )
+      .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
+
+    const globalIncome = nonLoanTransactions
+      .filter(tx => 
+        (tx.transaction_type?.toLowerCase() === "global income" || 
+        tx.description?.toLowerCase() === "global income") &&
+        tx.status === "Completed"
+      )
+      .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
+
     // Get pending withdrawals for transparency
     const pendingWithdrawals = nonLoanTransactions
       .filter(tx => tx.transaction_type === "Withdrawal" && tx.status === "Pending")
@@ -101,7 +118,9 @@ const getWalletOverview = async (req, res) => {
         levelBenefits: levelBenefits.toFixed(2),
         directBenefits: directBenefits.toFixed(2),
         repaymentCommission: repaymentCommission.toFixed(2),
-        totalBenefits: (levelBenefits + directBenefits + repaymentCommission).toFixed(2),
+        dailyRoi: dailyRoi.toFixed(2),
+        globalIncome: globalIncome.toFixed(2),
+        totalBenefits: (levelBenefits + directBenefits + repaymentCommission + dailyRoi + globalIncome).toFixed(2),
         pendingWithdrawals: pendingWithdrawals.toFixed(2),
         // Loan information (for transparency)
         loanInfo: {

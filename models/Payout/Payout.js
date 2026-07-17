@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const payoutSchema = new mongoose.Schema(
   {
-    payout_id: Number,
+    payout_id: String,
     date: String,
     memberId: String,
     payout_type: String,

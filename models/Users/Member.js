@@ -40,6 +40,8 @@ const MemberSchema = new mongoose.Schema(
     phonepe: { type: String },
     member_code: { type: String },
     roi_status: { type: String },
+    roi_days_completed: { type: Number, default: 0 },
+    last_roi_date: { type: Date },
     upgrade_package: { type: String },
     upgrade_status: {
       type: String,

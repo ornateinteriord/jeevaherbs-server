@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../../JeevaHerbs-ui"
+		},
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../../BMS_Bizz_Server/BICCSL-Server"
+		}
+	],
+	"settings": {}
+}

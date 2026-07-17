@@ -16,17 +16,22 @@ const TransactionModel = require("../../../models/Transaction/Transaction");
  * 
  * Total potential commission per referral: ₹325 (₹100 + ₹25 × 9)
  */
+/**
+ * Commission Rates for MLM System based on 5000 package
+ * 
+ * Structure:
+ * - Level 1 (Direct 10%): ₹500
+ * - Level 2 (5%): ₹250
+ * - Level 3 (2%): ₹100
+ * - Level 4 (2%): ₹100
+ * - Level 5 (1%): ₹50
+ */
 const commissionRates = {
-  1: 100,  // Direct referral commission
-  2: 25,   // 2nd level indirect commission
-  3: 25,   // 3rd level indirect commission
-  4: 25,   // 4th level indirect commission
-  5: 25,   // 5th level indirect commission
-  6: 25,   // 6th level indirect commission
-  7: 25,   // 7th level indirect commission
-  8: 25,   // 8th level indirect commission
-  9: 25,   // 9th level indirect commission
-  10: 25   // 10th level indirect commission
+  1: 500,
+  2: 250,
+  3: 100,
+  4: 100,
+  5: 50
 };
 
 const getOrdinal = (number) => {
@@ -39,13 +44,8 @@ const getOrdinal = (number) => {
  * Finds all upline sponsors from a given member up to maxLevels
  * Starts from the member and traverses up the sponsor chain
  * Level 1 = Direct sponsor, Level 2 = Sponsor's sponsor, etc.
- * 
- * Example: If A refers B, and B refers C:
- * - When C is activated, findUplineSponsors(C) returns:
- *   - Level 1: B (C's direct sponsor) - gets ₹100
- *   - Level 2: A (B's sponsor) - gets ₹25
  */
-const findUplineSponsors = async (memberId, maxLevels = 10) => {
+const findUplineSponsors = async (memberId, maxLevels = 5) => {
   const uplineSponsors = [];
   let currentMemberId = memberId;
   let level = 0;
@@ -79,7 +79,7 @@ const findUplineSponsors = async (memberId, maxLevels = 10) => {
   }
 
   // console.log(`📊 Found ${uplineSponsors.length} upline sponsors for member ${memberId}`);
-  // return uplineSponsors;
+  return uplineSponsors;
 };
 
 /**

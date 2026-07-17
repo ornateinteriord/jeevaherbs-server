@@ -111,8 +111,11 @@ app.get("/", (req, res) => {
 });
 
 // ======================================================
-//        🚀 Start Server
+//        🚀 Start Server & Cron Jobs
 // ======================================================
+const { startCronJobs } = require('./utils/cronJobs');
+startCronJobs();
+
 const PORT = process.env.PORT || 5051;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
