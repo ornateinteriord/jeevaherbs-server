@@ -364,6 +364,7 @@ const updateMemberStatus = async (req, res) => {
         });
         await newTx.save();
 
+        /*
         // --- GLOBAL INCOME (AUTOPOOL) LOGIC ---
         // 1. Assign global_pool_id to the newly active member
         const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
@@ -421,6 +422,79 @@ const updateMemberStatus = async (req, res) => {
           }
         }
         // --- END GLOBAL INCOME LOGIC ---
+        */
+
+        // --- NEW GLOBAL INCOME (SINGLE LEG) LOGIC ---
+        const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
+        const maxPoolId = memberWithMaxPoolId && memberWithMaxPoolId.global_pool_id ? memberWithMaxPoolId.global_pool_id : 0;
+        const newPoolId = maxPoolId + 1;
+        
+        updatedMember.global_pool_id = newPoolId;
+        await updatedMember.save();
+
+        // Distribute 50 INR to up to 100 users who joined immediately before this user
+        const startPoolId = Math.max(1, newPoolId - 100);
+        if (newPoolId > 1) {
+          const eligibleMembers = await MemberModel.find({
+            global_pool_id: { $gte: startPoolId, $lt: newPoolId }
+          }).exec();
+
+          if (eligibleMembers.length > 0) {
+            const globalPayoutsToInsert = [];
+            const globalTxToInsert = [];
+            
+            const lastGlobalPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
+            let gPayoutId = 1;
+            if (lastGlobalPayout && lastGlobalPayout.payout_id) {
+              gPayoutId = (parseInt(lastGlobalPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0) + 1;
+            }
+
+            const lastGlobalTx = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
+            let gTxId = 1;
+            if (lastGlobalTx && lastGlobalTx.transaction_id) {
+              gTxId = (parseInt(lastGlobalTx.transaction_id.replace(/\D/g, ""), 10) || 0) + 1;
+            }
+
+            const dateStr = new Date().toISOString();
+            const dateObj = new Date();
+
+            for (let i = 0; i < eligibleMembers.length; i++) {
+              const winner = eligibleMembers[i];
+              
+              globalPayoutsToInsert.push({
+                payout_id: `PAY-${(gPayoutId + i).toString().padStart(6, '0')}`,
+                date: dateStr,
+                memberId: winner.Member_id,
+                payout_type: "Reward",
+                amount: 50,
+                count: 1,
+                days: 1,
+                status: "Completed",
+                description: `Reward from User ${newPoolId} (Single Leg)`
+              });
+
+              globalTxToInsert.push({
+                transaction_id: `TXN-${(gTxId + i).toString().padStart(6, '0')}`,
+                transaction_date: dateObj,
+                member_id: winner.Member_id,
+                description: `Reward Payout (Triggered by Pool ID ${newPoolId})`,
+                transaction_type: "Reward",
+                ew_credit: 50,
+                ew_debit: 0,
+                status: "Completed",
+                net_amount: 50,
+                gross_amount: 50
+              });
+            }
+
+            if (globalPayoutsToInsert.length > 0) {
+              await PayoutModel.insertMany(globalPayoutsToInsert);
+              await TransactionModel.insertMany(globalTxToInsert);
+              console.log(`✅ Distributed 50 INR to ${globalPayoutsToInsert.length} upline single-leg members.`);
+            }
+          }
+        }
+        // --- END NEW GLOBAL INCOME LOGIC ---
 
         return res.status(200).json({
           success: true,

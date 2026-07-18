@@ -81,7 +81,9 @@ const getWalletOverview = async (req, res) => {
     const globalIncome = nonLoanTransactions
       .filter(tx => 
         (tx.transaction_type?.toLowerCase() === "global income" || 
-        tx.description?.toLowerCase() === "global income") &&
+         tx.transaction_type?.toLowerCase() === "reward" ||
+         tx.description?.toLowerCase() === "global income" ||
+         tx.description?.toLowerCase().includes("reward")) &&
         tx.status === "Completed"
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
