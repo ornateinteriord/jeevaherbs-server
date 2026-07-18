@@ -18,16 +18,6 @@ const LocationRoutes = require("./routes/LocationRoutes");
 
 const app = express();
 
-app.use((req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      success: false,
-      message: "Database not connected",
-    });
-  }
-
-  next();
-});
 
 // ======================================================
 //        🛡️ CORS CONFIG (Supports Vite + ngrok)
@@ -69,7 +59,16 @@ app.use(
 
 app.options("*", cors());
 
-
+// DB Connection Check Middleware
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "Database not connected",
+    });
+  }
+  next();
+});
 
 const { handleWebhook } = require("./controllers/Payments/CashfreeController");
 const PaymentRoutes = require("./routes/PaymentRoutes");
