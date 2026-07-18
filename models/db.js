@@ -3,7 +3,11 @@ const mongoose = require("mongoose");
 
 const mongo_url = process.env.MONGO_URI;
 mongoose
-  .connect(mongo_url)
+  .connect(mongo_url, {
+    serverSelectionTimeoutMS: 30000, // 30 seconds
+    socketTimeoutMS: 45000, // 45 seconds
+    connectTimeoutMS: 30000, // 30 seconds
+  })
   .then(() => {
     console.log("MongoDB Connected");
    
