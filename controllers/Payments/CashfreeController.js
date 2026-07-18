@@ -54,7 +54,8 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD" || process.env.CASHFREE_ENV === "production";
+    // Allow CASHFREE_ENV=sandbox to override Vercel's default NODE_ENV=production
+    const isProd = (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD") && process.env.CASHFREE_ENV !== "sandbox";
     
     const CASHFREE_BASE_URL = isProd
         ? "https://api.cashfree.com"
