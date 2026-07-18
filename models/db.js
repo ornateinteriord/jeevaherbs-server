@@ -7,6 +7,7 @@ mongoose
     serverSelectionTimeoutMS: 30000, // 30 seconds
     socketTimeoutMS: 45000, // 45 seconds
     connectTimeoutMS: 30000, // 30 seconds
+    bufferTimeoutMS: 30000, // 30 seconds
   })
   .then(() => {
     console.log("MongoDB Connected");
