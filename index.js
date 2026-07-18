@@ -1,9 +1,10 @@
 // ====================== Imports ======================
 const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config()
 const ImageKit = require("imagekit");
-require("./models/db"); // Your Mongo DB connection file
+const connectDB = require("./models/db"); // Your Mongo DB connection file
 
 // ====================== Routes ======================
 // ====================== Routes ======================q
@@ -16,6 +17,17 @@ const LocationRoutes = require("./routes/LocationRoutes");
 
 
 const app = express();
+
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "Database not connected",
+    });
+  }
+
+  next();
+});
 
 // ======================================================
 //        🛡️ CORS CONFIG (Supports Vite + ngrok)
@@ -122,11 +134,25 @@ app.get("/", (req, res) => {
 // ======================================================
 //        🚀 Start Server & Cron Jobs
 // ======================================================
-const { startCronJobs } = require('./utils/cronJobs');
-startCronJobs();
+const { startCronJobs } = require("./utils/cronJobs");
 
 const PORT = process.env.PORT || 5051;
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-});
-// Restart
+
+(async () => {
+  try {
+    // Connect MongoDB First
+    await connectDB();
+
+    // Start Cron Jobs
+    startCronJobs();
+
+    // Start Express Server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error("❌ Server startup failed:", err);
+    process.exit(1);
+  }
+})();
