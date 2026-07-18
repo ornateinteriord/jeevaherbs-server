@@ -54,8 +54,9 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const CASHFREE_BASE_URL =
-      process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD"
+    const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD" || process.env.CASHFREE_ENV === "production";
+    
+    const CASHFREE_BASE_URL = isProd
         ? "https://api.cashfree.com"
         : "https://sandbox.cashfree.com";
 
@@ -133,7 +134,7 @@ exports.createOrder = async (req, res) => {
       success: true,
       order_id: response.data.order_id,
       payment_session_id: response.data.payment_session_id,
-      cashfree_env: (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD") ? "production" : "sandbox"
+      cashfree_env: isProd ? "production" : "sandbox"
     });
 
   } catch (error) {
