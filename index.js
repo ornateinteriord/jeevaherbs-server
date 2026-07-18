@@ -59,13 +59,22 @@ app.options("*", cors());
 
 
 
+const { handleWebhook } = require("./controllers/Payments/CashfreeController");
+const PaymentRoutes = require("./routes/PaymentRoutes");
+
+// ======================================================
+//    ⚠️ CASHFREE WEBHOOK (Must be before express.json)
+// ======================================================
+app.post("/api/payment/webhook/cashfree", express.raw({ type: "*/*" }), handleWebhook);
+
 // ======================================================
 //        📦 BODY PARSER (normal APIs)
 // ======================================================
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
-
+// Mount Payment routes
+app.use("/api/payment", PaymentRoutes);
 
 // ======================================================
 //    📷 ImageKit Configuration (Optional but Secure)
