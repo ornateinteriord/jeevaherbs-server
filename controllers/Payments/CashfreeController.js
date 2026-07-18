@@ -188,7 +188,8 @@ exports.handleWebhook = async (req, res) => {
     const orderId = data.data?.order?.order_id || data.data?.order_id || data.order_id;
 
     if (!orderId) {
-      return res.status(400).send("Order ID not found in webhook data");
+      console.warn("⚠️ Order ID not found in webhook data (Could be a Cashfree Test Webhook)");
+      return res.status(200).send("Webhook received successfully (Test)");
     }
 
     const orderStatus = data.data?.payment?.payment_status || data.data?.order?.order_status || data.order_status;
