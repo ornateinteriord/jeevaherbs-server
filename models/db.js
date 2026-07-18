@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 
 const mongo_url = process.env.MONGO_URI;
-mongoose.set('bufferTimeoutMS', 30000);
+mongoose.set('bufferTimeoutMS', 60000);
 
 mongoose
   .connect(mongo_url, {
-    serverSelectionTimeoutMS: 30000, // 30 seconds
-    socketTimeoutMS: 45000, // 45 seconds
-    connectTimeoutMS: 30000, // 30 seconds
+    serverSelectionTimeoutMS: 60000, // 60 seconds
+    socketTimeoutMS: 60000, // 60 seconds
+    connectTimeoutMS: 60000, // 60 seconds
   })
   .then(() => {
     console.log("MongoDB Connected");
