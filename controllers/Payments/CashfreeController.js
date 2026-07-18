@@ -96,10 +96,16 @@ exports.createOrder = async (req, res) => {
 
     console.log("📤 Final Cashfree Payload:", cashfreeBody);
 
+    console.log("Base URL:", CASHFREE_BASE_URL);
+    console.log("Client ID:", CASHFREE_APP_ID);
+    console.log("Secret Length:", CASHFREE_SECRET_KEY ? CASHFREE_SECRET_KEY.length : 0);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("CASHFREE_ENV:", process.env.CASHFREE_ENV);
+
     // -------- SEND TO CASHFREE ----------
     const headers = {
       "Content-Type": "application/json",
-      "x-api-version": "2022-09-01",
+     "x-api-version": "2025-01-01",
       "x-client-id": CASHFREE_APP_ID,
       "x-client-secret": CASHFREE_SECRET_KEY,
     };
@@ -139,7 +145,15 @@ exports.createOrder = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ ERROR:", error.response?.data || error.message);
+    console.error("❌ CASHFREE API ERROR =====================");
+    if (error.response) {
+      console.error("-> Status Code:", error.response.status);
+      console.error("-> Response Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("-> Error Message:", error.message);
+    }
+    console.error("===========================================");
+
     res.status(500).json({
       success: false,
       message: "Failed to create order",
@@ -153,7 +167,8 @@ exports.createOrder = async (req, res) => {
 // Handle webhook from Cashfree
 exports.handleWebhook = async (req, res) => {
   try {
-    console.log("🟢 WEBHOOK RECEIVED =====================");
+    console.log("🟢 CASHFREE WEBHOOK RECEIVED =====================");
+    console.log("-> Webhook Headers:", JSON.stringify(req.headers, null, 2));
 
     const signature = req.headers["x-webhook-signature"];
     const timestamp = req.headers["x-webhook-timestamp"];
@@ -172,6 +187,7 @@ exports.handleWebhook = async (req, res) => {
     let parsedData;
     try {
       parsedData = JSON.parse(rawBody);
+      console.log("-> Webhook Parsed Body:", JSON.stringify(parsedData, null, 2));
     } catch (parseErr) {
       console.error("❌ Failed to parse webhook body:", parseErr);
       return res.status(400).send("Invalid JSON in webhook body");
