@@ -39,6 +39,7 @@ const getSponsers = async (req, res) => {
   };
 
 
+/*
  const checkSponsorReward = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -88,7 +89,8 @@ const getSponsers = async (req, res) => {
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
+*/
 
 
-  module.exports = { getSponsers ,checkSponsorReward };
+  module.exports = { getSponsers };
 

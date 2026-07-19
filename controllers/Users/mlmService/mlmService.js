@@ -21,16 +21,16 @@ const TransactionModel = require("../../../models/Transaction/Transaction");
  * 
  * Structure:
  * - Level 1 (Direct 10%): ₹500
- * - Level 2 (5%): ₹250
- * - Level 3 (2%): ₹100
- * - Level 4 (2%): ₹100
+ * - Level 2 (3%): ₹150
+ * - Level 3 (1%): ₹50
+ * - Level 4 (1%): ₹50
  * - Level 5 (1%): ₹50
  */
 const commissionRates = {
   1: 500,
-  2: 250,
-  3: 100,
-  4: 100,
+  2: 150,
+  3: 50,
+  4: 50,
   5: 50
 };
 

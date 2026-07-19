@@ -6,7 +6,7 @@ const {
   UpdateMemberDetails,
   activateMemberPackage,
 } = require("../controllers/Users/Profile/Profile");
-const { getSponsers, checkSponsorReward } = require("../controllers/Users/Sponser/sponser");
+const { getSponsers } = require("../controllers/Users/Sponser/sponser");
 const { getMultiLevelSponsorship } = require("../controllers/Users/Sponser/multiLevelSponsorship");
 const { createTicket, getTickets } = require("../controllers/Users/Ticket/TicketConntroller");
 const Authenticated = require("../middlewares/auth");
@@ -39,7 +39,7 @@ router.put('/transferPackage', Authenticated, transferEpin);
 router.get('/package-history', Authenticated, getPackageHistory);
 
 router.get('/sponsers/:memberId', Authenticated, getSponsers);
-router.get("/check-sponsor-reward/:memberId", Authenticated, checkSponsorReward);
+// router.get("/check-sponsor-reward/:memberId", Authenticated, checkSponsorReward);
 router.get('/multi-level-sponsors', Authenticated, getMultiLevelSponsorship);
 
 router.post("/mlm/trigger-commissions", triggerMLMCommissions);

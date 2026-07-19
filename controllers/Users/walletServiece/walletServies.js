@@ -78,6 +78,15 @@ const getWalletOverview = async (req, res) => {
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
 
+    const dailyIncentive = nonLoanTransactions
+      .filter(tx => 
+        (tx.transaction_type?.toLowerCase() === "daily incentive" || 
+        tx.description?.toLowerCase() === "daily incentive" || 
+        tx.description?.toLowerCase().includes("daily incentive")) &&
+        tx.status === "Completed"
+      )
+      .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
+
     const globalIncome = nonLoanTransactions
       .filter(tx => 
         (tx.transaction_type?.toLowerCase() === "global income" || 
@@ -117,8 +126,9 @@ const getWalletOverview = async (req, res) => {
         directBenefits: directBenefits.toFixed(2),
         repaymentCommission: repaymentCommission.toFixed(2),
         dailyRoi: dailyRoi.toFixed(2),
+        dailyIncentive: dailyIncentive.toFixed(2),
         globalIncome: globalIncome.toFixed(2),
-        totalBenefits: (levelBenefits + directBenefits + repaymentCommission + dailyRoi + globalIncome).toFixed(2),
+        totalBenefits: (levelBenefits + directBenefits + repaymentCommission + dailyRoi + dailyIncentive + globalIncome).toFixed(2),
         pendingWithdrawals: pendingWithdrawals.toFixed(2),
         // Loan information (for transparency)
         loanInfo: {
@@ -154,6 +164,15 @@ const getWalletWithdraw = async (req, res) => {
 
     const member = await MemberModel.findOne({ Member_id: memberId });
     if (!member) return res.status(404).json({ success: false, message: "Member not found" });
+
+    // Allow withdrawals only on 10th and 25th
+    const currentDay = new Date().getDate();
+    if (currentDay !== 10 && currentDay !== 25) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Withdrawals are only allowed on the 10th and 25th of every month." 
+      });
+    }
 
     // Calculate last Saturday
     const today = new Date();
@@ -334,7 +353,7 @@ const getWalletWithdraw = async (req, res) => {
       });
     }
 
-    const deduction = withdrawalAmount * 0.15;
+    const deduction = withdrawalAmount * 0.10;
     const netAmount = withdrawalAmount - deduction;
 
     const lastTransaction = await TransactionModel.findOne({})
@@ -381,7 +400,7 @@ const getWalletWithdraw = async (req, res) => {
           grossAmount: withdrawalAmount.toFixed(2),
           deduction: deduction.toFixed(2),
           netAmount: netAmount.toFixed(2),
-          deductionRate: "15%"
+          deductionRate: "10%"
         },
         balanceDetails: {
           previousBalance: availableBalance.toFixed(2),
@@ -402,7 +421,7 @@ const getWalletWithdraw = async (req, res) => {
         },
         status: "Pending",
         calculation: {
-          deduction: `15% of ₹${withdrawalAmount.toFixed(2)} = ₹${deduction.toFixed(2)}`,
+          deduction: `10% of ₹${withdrawalAmount.toFixed(2)} = ₹${deduction.toFixed(2)}`,
           netAmount: `₹${withdrawalAmount.toFixed(2)} - ₹${deduction.toFixed(2)} = ₹${netAmount.toFixed(2)}`,
           balanceUpdate: `₹${availableBalance.toFixed(2)} - ₹${withdrawalAmount.toFixed(2)} = ₹${newAvailableBalance.toFixed(2)}`
         },

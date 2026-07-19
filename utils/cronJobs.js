@@ -7,6 +7,13 @@ const PayoutModel = require('../models/Payout/Payout');
 const startCronJobs = () => {
   // Run every day at midnight (00:00)
   cron.schedule('0 0 * * *', async () => {
+    // Get the current day of the week (0 is Sunday, 6 is Saturday)
+    const currentDay = moment().day();
+    if (currentDay === 0 || currentDay === 6) {
+      console.log(`[Cron] Today is a weekend. Skipping Daily ROI distribution.`);
+      return;
+    }
+
     console.log(`[Cron] Starting Daily ROI distribution at ${moment().format('YYYY-MM-DD HH:mm:ss')}`);
     
     try {
@@ -79,6 +86,56 @@ const startCronJobs = () => {
         member.roi_days_completed += 1;
         member.last_roi_date = new Date();
         await member.save();
+
+        // ---------------------------------------------------------
+        // Daily Incentive Logic: Distribute ₹3, ₹2, ₹1 to Top 3 Uplines
+        // ---------------------------------------------------------
+        const { findUplineSponsors } = require('../controllers/Users/mlmService/mlmService');
+        const uplineSponsors = await findUplineSponsors(member.Member_id, 3); // Max 3 levels
+        
+        const incentiveRates = {
+          1: 3,
+          2: 2,
+          3: 1
+        };
+
+        for (const upline of uplineSponsors) {
+          if (upline.sponsor_status === 'active' && incentiveRates[upline.level]) {
+            const incentiveAmount = incentiveRates[upline.level];
+            const incentiveTxId = `TXN-${newTransactionId.toString().padStart(6, '0')}-${upline.level}`;
+            const incTransaction = new TransactionModel({
+              transaction_id: incentiveTxId,
+              transaction_date: new Date(),
+              member_id: upline.sponsor_id,
+              description: `Daily Incentive from ${member.Member_id} - Day ${member.roi_days_completed}`,
+              transaction_type: "Daily Incentive",
+              ew_credit: incentiveAmount,
+              ew_debit: 0,
+              status: "Completed",
+              net_amount: incentiveAmount,
+              gross_amount: incentiveAmount,
+              level: upline.level,
+              related_member_id: member.Member_id
+            });
+            await incTransaction.save();
+
+            // Payout record for Daily Incentive
+            const incPayoutId = `PAY-${newPayoutId.toString().padStart(6, '0')}-${upline.level}`;
+            const incPayout = new PayoutModel({
+              payout_id: incPayoutId,
+              date: new Date().toISOString(),
+              memberId: upline.sponsor_id,
+              payout_type: "Daily Incentive",
+              amount: incentiveAmount,
+              level: upline.level,
+              status: "Completed",
+              description: `Daily Incentive from ${member.Member_id} - Day ${member.roi_days_completed}`,
+              sponsored_member_id: member.Member_id
+            });
+            await incPayout.save();
+          }
+        }
+        // ---------------------------------------------------------
 
         processedCount++;
       }
