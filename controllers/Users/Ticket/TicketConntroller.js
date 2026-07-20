@@ -37,7 +37,7 @@ const getTickets = async (req, res) => {
         }
 
         if (tickets.length === 0) {
-            return res.status(404).json({ success: false, message: "No Tickets Found" });
+            return res.status(200).json({ success: true, tickets: [] });
         }
 
         res.status(200).json({ success: true, tickets });

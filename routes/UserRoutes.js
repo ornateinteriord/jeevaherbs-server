@@ -12,6 +12,7 @@ const { createTicket, getTickets } = require("../controllers/Users/Ticket/Ticket
 const Authenticated = require("../middlewares/auth");
 const { triggerMLMCommissions, getMemberCommissionSummary, getDailyPayout, climeRewardLoan, repaymentLoan } = require("../controllers/Users/Payout/PayoutController");
 const { getPendingTransactions, approveWithdrawal } = require("../controllers/Users/payoutPending/pendingTransactions");
+const { processDailyROI } = require("../utils/cronJobs");
 const { getWalletOverview, getWalletWithdraw } = require("../controllers/Users/walletServiece/walletServies");
 const { getUplineTree } = require("../controllers/Users/mlmService/mlmService");
 
@@ -59,5 +60,15 @@ router.get("/daily-payout/:member_id", Authenticated, getDailyPayout);
 router.post("/clime-reward-loan/:memberId", climeRewardLoan)
 
 router.post("/repayment-loan/:memberId", repaymentLoan)
+
+// Manual trigger for Daily ROI testing
+router.post("/trigger-roi", async (req, res) => {
+  const result = await processDailyROI();
+  if (result.success) {
+    res.status(200).json(result);
+  } else {
+    res.status(500).json(result);
+  }
+});
 
 module.exports = router;

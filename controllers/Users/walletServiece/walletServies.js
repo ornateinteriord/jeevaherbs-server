@@ -282,6 +282,39 @@ const getWalletWithdraw = async (req, res) => {
       )
       .reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
 
+    const totalWithdrawnSoFar = nonLoanTransactions
+      .filter(tx => tx.transaction_type === "Withdrawal" && (tx.status === "Completed" || tx.status === "Pending" || tx.status === "Approved"))
+      .reduce((acc, tx) => acc + (parseFloat(tx.ew_debit) || 0), 0);
+
+    const newTotalWithdrawal = totalWithdrawnSoFar + withdrawalAmount;
+
+    let requiredDirects = 0;
+    if (newTotalWithdrawal <= 12000) {
+      requiredDirects = 0;
+    } else if (newTotalWithdrawal <= 20000) {
+      requiredDirects = 2;
+    } else if (newTotalWithdrawal <= 25000) {
+      requiredDirects = 4;
+    } else {
+      const excess = newTotalWithdrawal - 25000;
+      const tiersAbove25k = Math.ceil(excess / 5000);
+      requiredDirects = 4 + (tiersAbove25k * 2);
+    }
+
+    if (requiredDirects > 0) {
+      const activeDirectsCount = await MemberModel.countDocuments({ 
+        Sponsor_code: memberId,
+        status: "active"
+      });
+
+      if (activeDirectsCount < requiredDirects) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Withdrawal blocked: You need ${requiredDirects} active direct referrals to withdraw up to ₹${newTotalWithdrawal.toFixed(2)}. You currently have ${activeDirectsCount}.` 
+        });
+      }
+    }
+
     if (withdrawalAmount < 500) {
       return res.status(400).json({ 
         success: false, 
