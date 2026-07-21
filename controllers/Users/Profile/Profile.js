@@ -5,6 +5,15 @@ const { triggerMLMCommissions } = require("../Payout/PayoutController");
 
 const getMemberDetails = async (req, res) => {
   try {
+    // If admin, return all members immediately
+    if (req.user && req.user.role === "ADMIN") {
+      const members = await MemberModel.find();
+      return res.status(200).json({ 
+        success: true, 
+        members 
+      });
+    }
+
     const id = req.user.id;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -20,16 +29,6 @@ const getMemberDetails = async (req, res) => {
       return res.status(404).json({ 
         success: false, 
         message: "User not found" 
-      });
-    }
-
-    // If admin, return all members
-    if (foundUser instanceof AdminModel) {
-      const members = await MemberModel.find();
-      return res.status(200).json({ 
-        success: true, 
-        data: foundUser, 
-        members 
       });
     }
 

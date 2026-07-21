@@ -51,7 +51,7 @@ router.get("/mlm/upline-tree/:member_id", getUplineTree);
 
 router.get("/overview/:memberId", Authenticated, getWalletOverview);
 router.post("/withdraw/:memberId", Authenticated, getWalletWithdraw);
-router.put('/approve-withdrawal/:member_id', Authenticated, approveWithdrawal);
+router.put('/approve-withdrawal/:transactionId', Authenticated, approveWithdrawal);
 
 
 // router.get("/level-benefits/:member_id", getLevelBenefits);

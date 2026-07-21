@@ -11,19 +11,19 @@ const recoverySubject = "VGK-Club - Password Recovery";
 const resetPasswordSubject =  "VGK-Club - OTP Verification";
 
 const generateUniqueMemberId = async () => {
-  const lastMember = await MemberModel.findOne({ Member_id: /^SF\d+$/ })
+  const lastMember = await MemberModel.findOne({ Member_id: /^JH\d+$/ })
     .sort({ _id: -1 });
 
   let nextIdNum = 1;
   if (lastMember && lastMember.Member_id) {
-    const lastIdStr = lastMember.Member_id.replace('SF', '');
+    const lastIdStr = lastMember.Member_id.replace('JH', '');
     nextIdNum = (parseInt(lastIdStr, 10) || 0) + 1;
   }
   
-  let memberId = `SF${String(nextIdNum).padStart(6, '0')}`;
+  let memberId = `JH${String(nextIdNum).padStart(4, '0')}`;
   while (await MemberModel.exists({ Member_id: memberId })) {
     nextIdNum++;
-    memberId = `SF${String(nextIdNum).padStart(6, '0')}`;
+    memberId = `JH${String(nextIdNum).padStart(4, '0')}`;
   }
   return memberId;
 };

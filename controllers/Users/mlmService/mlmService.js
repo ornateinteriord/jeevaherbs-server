@@ -21,17 +21,20 @@ const TransactionModel = require("../../../models/Transaction/Transaction");
  * 
  * Structure:
  * - Level 1 (Direct 10%): ₹500
- * - Level 2 (3%): ₹150
- * - Level 3 (1%): ₹50
- * - Level 4 (1%): ₹50
- * - Level 5 (1%): ₹50
+ * - Level 2 (2%): ₹100
+ * - Levels 3-10 (0.5%): ₹25
  */
 const commissionRates = {
   1: 500,
-  2: 150,
-  3: 50,
-  4: 50,
-  5: 50
+  2: 100,
+  3: 25,
+  4: 25,
+  5: 25,
+  6: 25,
+  7: 25,
+  8: 25,
+  9: 25,
+  10: 25
 };
 
 const getOrdinal = (number) => {
@@ -45,7 +48,7 @@ const getOrdinal = (number) => {
  * Starts from the member and traverses up the sponsor chain
  * Level 1 = Direct sponsor, Level 2 = Sponsor's sponsor, etc.
  */
-const findUplineSponsors = async (memberId, maxLevels = 5) => {
+const findUplineSponsors = async (memberId, maxLevels = 10) => {
   const uplineSponsors = [];
   let currentMemberId = memberId;
   let level = 0;
@@ -100,8 +103,8 @@ const findUplineSponsors = async (memberId, maxLevels = 5) => {
  */
 const calculateCommissions = async (newMemberId, directSponsorId) => {
   try {
-    // Find all upline sponsors up to 5 levels
-    const uplineSponsors = await findUplineSponsors(newMemberId, 5);
+    // Find all upline sponsors up to 10 levels
+    const uplineSponsors = await findUplineSponsors(newMemberId, 10);
 
     if (uplineSponsors.length === 0) {
       // console.log(`⚠️ No upline sponsors found for member ${newMemberId}`);
@@ -361,9 +364,10 @@ const getUplineTree = async (memberId, maxLevels = 10) => {
 const getCommissionSummary = () => {
   return {
     total_levels: 10,
-    level_1_commission: 100,
-    levels_2_to_10_commission: 25,
-    total_potential: 325,
+    level_1_commission: 500,
+    level_2_commission: 100,
+    levels_3_to_10_commission: 25,
+    total_potential: 800, // 500 + 100 + (8 * 25)
     rates: commissionRates,
     condition: "Commissions only for sponsors with 'active' status"
   };
