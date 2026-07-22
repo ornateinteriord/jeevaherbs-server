@@ -5,18 +5,31 @@ const getTransactionDetails = async (req, res) => {
   try {
     const loggedInMemberId = req.user.memberId;
     const userRole = req.user.role;
-    const { status } = req.query;
+    const { status, transaction_type, member_id } = req.query;
 
     let query = {};
     
     if (userRole === "ADMIN") {
-      query = loggedInMemberId ? { member_id: loggedInMemberId } : {};
+      // Admin can filter by a specific member if provided, else see all
+      if (member_id) {
+        query = { member_id };
+      } else {
+        query = {};
+      }
     } else if (userRole === "USER") {
       query = { member_id: loggedInMemberId };
     }
 
     if (status && status !== "all") {
       query.status = status;
+    }
+
+    // Filter by transaction type (for income management pages)
+    if (transaction_type && transaction_type !== "all") {
+      query.transaction_type = transaction_type;
+      if (transaction_type === "Daily ROI") {
+        query.description = { $ne: "Initial ROI Setup" };
+      }
     }
 
     const transactions = await TransactionModel.find(query);

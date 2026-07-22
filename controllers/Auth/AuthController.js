@@ -8,7 +8,7 @@ const { generateOTP, storeOTP, verifyOTP } = require("../../utils/OtpService");
 const { generateMSCSEmail } = require("../../utils/generateMSCSEmail");
 
 const recoverySubject = "VGK-Club - Password Recovery";
-const resetPasswordSubject =  "VGK-Club - OTP Verification";
+const resetPasswordSubject = "VGK-Club - OTP Verification";
 
 const generateUniqueMemberId = async () => {
   const lastMember = await MemberModel.findOne({ Member_id: /^JH\d+$/ })
@@ -19,7 +19,7 @@ const generateUniqueMemberId = async () => {
     const lastIdStr = lastMember.Member_id.replace('JH', '');
     nextIdNum = (parseInt(lastIdStr, 10) || 0) + 1;
   }
-  
+
   let memberId = `JH${String(nextIdNum).padStart(4, '0')}`;
   while (await MemberModel.exists({ Member_id: memberId })) {
     nextIdNum++;
@@ -43,7 +43,7 @@ const signup = async (req, res) => {
       email,
       password,
       Name,
-      
+
       ...otherDetails,
     });
     await newMember.save();
@@ -51,9 +51,9 @@ const signup = async (req, res) => {
     try {
 
       const { welcomeMessage, welcomeSubject } = generateMSCSEmail(memberId, password, Name);
-      
+
       const textContent = `Dear ${Name}, Your account registration with VGK-Club has been completed. Member ID: ${memberId}, Password: ${password}. Your account is under verification process.`;
-      
+
 
       await sendMail(email, welcomeSubject, welcomeMessage, textContent);
 
@@ -83,7 +83,7 @@ const getSponsorDetails = async (req, res) => {
     const sponsor = await MemberModel.findOne({ Member_id: ref });
     if (!sponsor) {
       return res
-      .status(404)
+        .status(404)
         .json({ success: false, message: "Invalid Sponsor Code" });
     }
     res.json({
@@ -102,8 +102,8 @@ const recoverPassword = async (req, res) => {
     const user = await MemberModel.findOne({ email });
     if (!user) {
       return res
-      .status(404)
-      .json({ success: false, message: "Email not registered" });
+        .status(404)
+        .json({ success: false, message: "Email not registered" });
     }
     const recoveryDescription = `Dear Member,\n\nYou requested a password recovery. Here is your password:\n ${user.password}\n\nPlease keep this information secure.\n\nBest regards,\nVGK-Club Team`;
 
@@ -133,7 +133,7 @@ const resetPassword = async (req, res) => {
       return res.json({ success: true, message: "OTP verified. Now set a new password." });
     }
     if (password) {
-    
+
       user.password = password;
       await user.save();
 
@@ -145,7 +145,7 @@ const resetPassword = async (req, res) => {
     const newOtp = generateOTP();
     const resetPasswordDescription = `Dear Member,\n\nYour OTP for password reset is: ${newOtp}\n\nPlease use this OTP to proceed with resetting your password.\n\nPlease keep don't share with anyone.\n\nBest regards,\nVGK-Club Team`;
     storeOTP(email, newOtp);
-    await sendMail(email, resetPasswordSubject , resetPasswordDescription);
+    await sendMail(email, resetPasswordSubject, resetPasswordDescription);
     return res.json({ success: true, message: "OTP sent to your email" });
   } catch (error) {
     console.error("Error in resetPassword:", error);
@@ -185,17 +185,16 @@ const login = async (req, res) => {
       { expiresIn: "24h" }
     );
     return res.status(200).json({
-       
+
       success: true,
       role: userRole,
       user: foundUser,
       token,
-      message: `${
-        userRole.charAt(0).toUpperCase() + userRole.slice(1).toLowerCase()
-      } login successful`,
-      
+      message: `${userRole.charAt(0).toUpperCase() + userRole.slice(1).toLowerCase()
+        } login successful`,
+
     });
-   
+
   } catch (error) {
     console.error("Login Error:", error);
     return res

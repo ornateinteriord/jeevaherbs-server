@@ -32,18 +32,37 @@ const getMemberDetails = async (req, res) => {
       });
     }
 
-    // For regular members - get actual registration counts from database
+    // Count direct referrals (members who have this user as their Sponsor_code)
     const directCount = await MemberModel.countDocuments({ 
-      referred_by: foundUser.Member_id 
-    });
-
-    const totalTeamCount = await MemberModel.countDocuments({
       $or: [
-        { referred_by: foundUser.Member_id },
-        { referral_path: { $regex: foundUser.Member_id, $options: 'i' } }
+        { Sponsor_code: foundUser.Member_id },
+        { sponsor_id: foundUser.Member_id }
       ]
     });
 
+    // Get total team count recursively using BFS across all downlines
+    const getAllTeamMemberIds = async (sponsorId) => {
+      const queue = [sponsorId];
+      const visited = new Set();
+      let total = 0;
+      while (queue.length > 0) {
+        const current = queue.shift();
+        const children = await MemberModel.find(
+          { $or: [{ Sponsor_code: current }, { sponsor_id: current }] },
+          { Member_id: 1 }
+        );
+        for (const child of children) {
+          if (!visited.has(child.Member_id)) {
+            visited.add(child.Member_id);
+            total++;
+            queue.push(child.Member_id);
+          }
+        }
+      }
+      return total;
+    };
+
+    const totalTeamCount = await getAllTeamMemberIds(foundUser.Member_id);
     const indirectCount = totalTeamCount - directCount;
 
     // Add registration data to response
