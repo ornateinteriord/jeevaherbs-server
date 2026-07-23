@@ -538,4 +538,35 @@ const updateMemberStatus = async (req, res) => {
   }
 };
 
-module.exports = { getMemberDetails, UpdateMemberDetails,getMember ,activateMemberPackage, updateMemberStatus};
+const loginAsMember = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const member = await MemberModel.findOne({ Member_id: memberId });
+    if (!member) {
+      return res.status(404).json({ success: false, message: "Member not found" });
+    }
+    const jwt = require("jsonwebtoken");
+    const token = jwt.sign(
+      {
+        id: member._id,
+        role: "USER",
+        memberId: member.Member_id,
+        impersonatedByAdmin: req.user.id
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+    return res.status(200).json({
+      success: true,
+      role: "USER",
+      user: member,
+      token,
+      message: `Direct login to ${member.Name || member.Member_id} successful`
+    });
+  } catch (error) {
+    console.error("Error in loginAsMember:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = { getMemberDetails, UpdateMemberDetails, getMember, activateMemberPackage, updateMemberStatus, loginAsMember };

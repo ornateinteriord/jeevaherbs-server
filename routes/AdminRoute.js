@@ -4,7 +4,7 @@ const UpdatePassword = require("../controllers/Admin/UpdatePassword");
 const getTransactionDetails = require("../controllers/Transaction/Transaction");
 const { getEpinsSummary, generatePackage } = require("../controllers/Users/Epin/epin");
 const { getDailyPayout,   getRewardLoansByStatus, processRewardLoan } = require("../controllers/Users/Payout/PayoutController");
-const { getMemberDetails, UpdateMemberDetails, getMember, updateMemberStatus } = require("../controllers/Users/Profile/Profile");
+const { getMemberDetails, UpdateMemberDetails, getMember, updateMemberStatus, loginAsMember } = require("../controllers/Users/Profile/Profile");
 const { editTicket, getTickets } = require("../controllers/Users/Ticket/TicketConntroller");
 const Authenticated = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/authorizeRole");
@@ -19,6 +19,7 @@ router.get("/tickets" ,Authenticated,authorizeRoles("ADMIN"), getTickets)
 router.get("/epin-summary" ,Authenticated,authorizeRoles("ADMIN"), getEpinsSummary)
 router.put('/update-member/:memberId',Authenticated,authorizeRoles("ADMIN"),UpdateMemberDetails)
 router.get('/get-member/:memberId',Authenticated,authorizeRoles("ADMIN"),getMember)
+router.post('/login-as-member/:memberId',Authenticated,authorizeRoles("ADMIN"),loginAsMember)
 router.get('/getnews',Authenticated,authorizeRoles("ADMIN"),getNews)
 router.post('/addnews',Authenticated,authorizeRoles("ADMIN"),addNews)
 router.get('/getholiday',Authenticated,authorizeRoles("ADMIN"),getHoliday)

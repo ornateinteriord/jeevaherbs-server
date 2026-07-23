@@ -203,10 +203,31 @@ const login = async (req, res) => {
   }
 };
 
+const deleteMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Security check: Only delete the member if their status is "Pending"
+    // This prevents malicious users from deleting active accounts.
+    const deletedUser = await MemberModel.findOneAndDelete({ 
+      Member_id: id,
+      status: "Pending" // Assuming "Pending" is the default status
+    });
+    
+    if (!deletedUser) {
+      return res.status(404).json({ success: false, message: "User not found or cannot be deleted (may already be active)" });
+    }
+    return res.status(200).json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Delete Member Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 module.exports = {
   signup,
   getSponsorDetails,
   recoverPassword,
   resetPassword,
   login,
+  deleteMember,
 };
