@@ -228,7 +228,7 @@ exports.handleWebhook = async (req, res) => {
 
     // 1) Atomic update for Payment Record
     const paymentRecord = await PaymentModel.findOneAndUpdate(
-      { orderId: orderId, webhookReceived: { $ne: true } },
+      { orderId: orderId, status: { $ne: "PAID" } },
       {
         $set: {
           status: mappedStatus,
@@ -244,7 +244,7 @@ exports.handleWebhook = async (req, res) => {
     if (!paymentRecord) {
       // It was either not found or already processed
       const existing = await PaymentModel.findOne({ orderId: orderId });
-      if (existing && existing.webhookReceived) {
+      if (existing && existing.status === "PAID") {
         return res.status(200).json({ success: true, message: "Already processed" });
       }
       console.warn("⚠️ Payment record not found for order:", orderId);
