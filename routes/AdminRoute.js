@@ -8,6 +8,7 @@ const { getMemberDetails, UpdateMemberDetails, getMember, updateMemberStatus, lo
 const { editTicket, getTickets } = require("../controllers/Users/Ticket/TicketConntroller");
 const Authenticated = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/authorizeRole");
+const { getLoadRequests, processLoadRequest } = require("../controllers/Admin/Wallet/WalletController");
 
 const router = require("express").Router();
 
@@ -32,7 +33,9 @@ router.get('/all-daily-payouts', Authenticated, authorizeRoles("ADMIN"), getDail
 
 
 router.get('/reward-loans/:status', getRewardLoansByStatus);
-
 router.put('/reward-loans/:memberId/:action', processRewardLoan);
+
+router.get("/wallet/load-requests", Authenticated, authorizeRoles("ADMIN"), getLoadRequests);
+router.post("/wallet/process-load-request", Authenticated, authorizeRoles("ADMIN"), processLoadRequest);
 
 module.exports = router;

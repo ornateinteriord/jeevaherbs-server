@@ -142,8 +142,47 @@ const resetPassword = async (req, res) => {
         message: "Password reset successfully",
       });
     }
-    const newOtp = generateOTP();
-    const resetPasswordDescription = `Dear Member,\n\nYour OTP for password reset is: ${newOtp}\n\nPlease use this OTP to proceed with resetting your password.\n\nPlease keep don't share with anyone.\n\nBest regards,\nVGK-Club Team`;
+    const resetPasswordDescription = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; border-radius: 12px; background-color: #f4f7f6; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <div style="background: linear-gradient(135deg, #2c8786 0%, #1a5c5c 100%); padding: 30px 20px; text-align: center;">
+          <img src="${process.env.FRONTEND_URL}/images/jeevaherbs_logo.png" alt="Jeeva Herbs Logo" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+          <h2 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 600; letter-spacing: 1px;">Jeeva Herbs</h2>
+        </div>
+        
+        <div style="background-color: #ffffff; padding: 40px 30px;">
+          <h3 style="color: #2c8786; margin-top: 0; font-size: 22px; border-bottom: 2px solid #e0ebeb; padding-bottom: 10px;">Password Reset Request</h3>
+          
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+            Dear Member,
+          </p>
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+            We received a request to reset the password for your Jeeva Herbs account. Please use the secure One-Time Password (OTP) below to proceed:
+          </p>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <div style="display: inline-block; padding: 15px 30px; font-size: 32px; font-weight: 800; color: #ffffff; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; letter-spacing: 8px; box-shadow: 0 4px 10px rgba(217, 119, 6, 0.3);">
+              ${newOtp}
+            </div>
+            <p style="color: #737373; font-size: 13px; margin-top: 10px;">This code is valid to complete your reset request.</p>
+          </div>
+          
+          <div style="background-color: #fff8e1; border-left: 4px solid #f5b041; padding: 15px; margin-top: 30px; border-radius: 0 4px 4px 0;">
+            <p style="color: #5d4037; font-size: 14px; line-height: 1.5; margin: 0;">
+              <strong>Security Notice:</strong> If you did not request a password reset, please ignore this email or contact our support team immediately. Never share your OTP with anyone.
+            </p>
+          </div>
+        </div>
+        
+        <div style="background-color: #eef2f1; text-align: center; padding: 20px; border-top: 1px solid #dcdcdc;">
+          <p style="color: #777777; font-size: 13px; margin: 0;">
+            &copy; ${new Date().getFullYear()} Jeeva Herbs. All rights reserved.
+          </p>
+          <p style="color: #999999; font-size: 12px; margin-top: 8px;">
+            This is an automated message, please do not reply to this email.
+          </p>
+        </div>
+      </div>
+    `;
     storeOTP(email, newOtp);
     await sendMail(email, resetPasswordSubject, resetPasswordDescription);
     return res.json({ success: true, message: "OTP sent to your email" });

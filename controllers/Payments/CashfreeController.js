@@ -66,7 +66,12 @@ exports.createOrder = async (req, res) => {
     if (!frontendUrl.startsWith("http")) frontendUrl = "http://" + frontendUrl;
     if (!backendUrl.startsWith("http")) backendUrl = "https://" + backendUrl;
 
-    const returnUrl = `${frontendUrl}/register?order_id={order_id}&order_status={order_status}&member_id=${memberId}`;
+    let returnUrl;
+    if (notes && notes.isWalletTopUp) {
+      returnUrl = `${frontendUrl}/user/topup-wallet?order_id={order_id}&order_status={order_status}&member_id=${memberId}`;
+    } else {
+      returnUrl = `${frontendUrl}/register?order_id={order_id}&order_status={order_status}&member_id=${memberId}`;
+    }
     const notifyUrl = `${backendUrl}/api/payment/webhook/cashfree`;
 
     console.log("🔗 Cashfree URLs:", { returnUrl, notifyUrl });
@@ -132,7 +137,8 @@ exports.createOrder = async (req, res) => {
       amount,
       currency,
       status: response.data.order_status,
-      rawResponse: response.data
+      rawResponse: response.data,
+      notes: notes
     });
 
     // -------- SEND TO FRONTEND ----------
@@ -247,15 +253,55 @@ exports.handleWebhook = async (req, res) => {
 
     console.log("✅ Payment record updated with status:", mappedStatus);
       
-    // ACTIVATION LOGIC: Set user status to 'active' atomically
     if (isSuccessful) {
-      const member = await MemberModel.findOneAndUpdate(
+      if (paymentRecord.notes && paymentRecord.notes.isWalletTopUp) {
+        console.log("💼 Processing Wallet Top Up...");
+        const member = await MemberModel.findOneAndUpdate(
+          { Member_id: paymentRecord.memberId },
+          { $inc: { top_up_wallet_balance: paymentRecord.amount } },
+          { new: true }
+        );
+        if (member) {
+          console.log(`✅ Top Up Wallet updated for ${member.Member_id}. New balance: ${member.top_up_wallet_balance}`);
+
+          // Fetch last transaction to generate new TXN ID
+          const lastTx = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
+          let newTxId = 1;
+          if (lastTx && lastTx.transaction_id) {
+            const match = lastTx.transaction_id.match(/\d+/);
+            if (match) newTxId = parseInt(match[0], 10) + 1;
+          }
+
+          const newTx = new TransactionModel({
+            transaction_id: `TXN-${newTxId.toString().padStart(6, '0')}`,
+            transaction_date: new Date().toISOString(),
+            member_id: paymentRecord.memberId,
+            Name: member.Name || "",
+            mobileno: member.mobileno || "",
+            description: `Top Up Wallet Load (Order: ${paymentRecord.orderId})`,
+            transaction_type: "Top Up Wallet",
+            ew_credit: paymentRecord.amount.toString(),
+            ew_debit: "0",
+            status: "Completed",
+            net_amount: paymentRecord.amount.toString(),
+            previous_balance: (member.top_up_wallet_balance - paymentRecord.amount).toString()
+          });
+          await newTx.save();
+          console.log(`✅ Transaction recorded for Top Up Wallet load (ID: ${newTx.transaction_id}).`);
+
+        } else {
+          console.error(`❌ Member ${paymentRecord.memberId} not found for Top Up Wallet update.`);
+        }
+      } else {
+        // ACTIVATION LOGIC: Set user status to 'active' atomically
+        const member = await MemberModel.findOneAndUpdate(
         { Member_id: paymentRecord.memberId, status: "Pending" },
         {
           $set: {
             spackage: "Package 5000",
             package_value: 5000,
             activationDate: new Date(),
+            last_roi_date: new Date(),
             status: "active"
           }
         },
@@ -452,7 +498,8 @@ exports.handleWebhook = async (req, res) => {
             console.error("❌ Error in MLM/Global Pool processing:", err);
           }
         } // end if member
-      } // end if isSuccessful
+      } // end if !isWalletTopUp
+    } // end if isSuccessful
 
     return res.status(200).json({ success: true, message: "Webhook processed" });
   } catch (error) {

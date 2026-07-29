@@ -317,6 +317,7 @@ const updateMemberStatus = async (req, res) => {
       updateData.spackage = "Package 5000";
       updateData.package_value = 5000;
       updateData.activationDate = new Date();
+      updateData.last_roi_date = new Date();
     }
 
     const updatedMember = await MemberModel.findOneAndUpdate(query, updateData, { new: true });

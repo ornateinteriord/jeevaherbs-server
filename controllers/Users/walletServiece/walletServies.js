@@ -1,5 +1,6 @@
 const TransactionModel = require("../../../models/Transaction/Transaction");
 const MemberModel = require("../../../models/Users/Member");
+const { triggerMLMCommissions } = require("../Payout/PayoutController");
 
 const getWalletOverview = async (req, res) => {
   try {
@@ -15,10 +16,13 @@ const getWalletOverview = async (req, res) => {
 
     const transactions = await TransactionModel.find({ member_id: memberId });
 
-    // Filter out loan-related transactions
+    // Filter out loan-related and top-up-wallet transactions
     const nonLoanTransactions = transactions.filter(tx => 
       !tx.transaction_type?.toLowerCase().includes('loan') &&
-      !tx.description?.toLowerCase().includes('loan')
+      !tx.description?.toLowerCase().includes('loan') &&
+      !tx.transaction_type?.toLowerCase().includes('top up wallet') &&
+      !tx.description?.toLowerCase().includes('top up wallet') &&
+      !tx.transaction_type?.toLowerCase().includes('wallet top-up')
     );
 
     const completedAndPendingTx = nonLoanTransactions.filter(tx => 
@@ -137,6 +141,7 @@ const getWalletOverview = async (req, res) => {
           outstandingLoan: Math.max(0, netLoanBalance).toFixed(2),
           loanTransactionsCount: loanTransactions.length
         },
+        top_up_wallet_balance: member.top_up_wallet_balance || 0,
         calculation: {
           formula: "Available Balance = Sum of All Credits - Sum of All Debits (excluding loan transactions)",
           breakdown: `₹${completedAndPendingTx.reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0).toFixed(2)} - ₹${completedAndPendingTx.reduce((acc, tx) => acc + (parseFloat(tx.ew_debit) || 0), 0).toFixed(2)} = ₹${Math.max(0, availableBalance).toFixed(2)}`,
@@ -471,5 +476,220 @@ const getWalletWithdraw = async (req, res) => {
   }
 };
 
+const createManualTopupRequest = async (req, res) => {
+  try {
+    const { memberId, amount } = req.body;
 
-module.exports = { getWalletOverview, getWalletWithdraw };
+    if (!memberId) return res.status(400).json({ success: false, message: "Member ID is required" });
+    if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ success: false, message: "Valid amount is required" });
+
+    const member = await MemberModel.findOne({ Member_id: memberId });
+    if (!member) return res.status(404).json({ success: false, message: "Member not found" });
+
+    const formattedTxId = `TXN-MAN-${Date.now()}`;
+
+    const newTransaction = new TransactionModel({
+      transaction_id: formattedTxId,
+      transaction_date: new Date(),
+      member_id: memberId,
+      Name: member.Name,
+      mobileno: member.mobileno,
+      description: "Manual QR Top Up Request",
+      transaction_type: "Top Up Wallet",
+      ew_credit: amount,
+      ew_debit: 0,
+      status: "Pending",
+      net_amount: amount,
+      gross_amount: amount
+    });
+
+    await newTransaction.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Top-up request submitted to Admin successfully",
+    });
+  } catch (error) {
+    console.error("Error in createManualTopupRequest:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+const buyPackageFromTopup = async (req, res) => {
+  try {
+    const { buyerMemberId, targetMemberId } = req.body;
+    const packageAmount = 5000;
+
+    if (!buyerMemberId || !targetMemberId) {
+      return res.status(400).json({ success: false, message: "Buyer and Target Member IDs are required" });
+    }
+
+    const buyer = await MemberModel.findOne({ Member_id: buyerMemberId });
+    if (!buyer) return res.status(404).json({ success: false, message: "Buyer not found" });
+
+    if ((buyer.top_up_wallet_balance || 0) < packageAmount) {
+      return res.status(400).json({ success: false, message: "Insufficient Top Up Wallet balance" });
+    }
+
+    const target = await MemberModel.findOne({ Member_id: targetMemberId });
+    if (!target) return res.status(404).json({ success: false, message: "Target member not found" });
+
+    if (target.status === "active") {
+      return res.status(400).json({ success: false, message: "Target member is already active" });
+    }
+
+    // Deduct from buyer
+    buyer.top_up_wallet_balance -= packageAmount;
+    await buyer.save();
+
+    // Create transaction for buyer
+    const formattedTxId = `TXN-PKG-${Date.now()}`;
+    const newTransaction = new TransactionModel({
+      transaction_id: formattedTxId,
+      transaction_date: new Date(),
+      member_id: buyerMemberId,
+      Name: buyer.Name,
+      mobileno: buyer.mobileno,
+      description: `Activated package for ${target.Name} (${targetMemberId})`,
+      transaction_type: "Package Activation",
+      ew_credit: 0,
+      ew_debit: packageAmount,
+      status: "Completed",
+      net_amount: packageAmount,
+      gross_amount: packageAmount
+    });
+    await newTransaction.save();
+
+    // Update target
+    target.status = 'active';
+    target.spackage = 'standard';
+    target.package_value = packageAmount;
+    await target.save();
+
+    // Trigger MLM
+    try {
+      const mlmResult = await triggerMLMCommissions({
+        body: {
+          new_member_id: target.Member_id,
+          Sponsor_code: target.sponsor_id || target.Sponsor_code
+        }
+      }, {
+        status: () => ({ json: (data) => data }),
+        json: (data) => data
+      });
+      return res.status(200).json({
+        success: true,
+        message: "Package activated successfully",
+        mlm_commission: mlmResult
+      });
+    } catch (mlmError) {
+      console.error("MLM Commission Error:", mlmError);
+      return res.status(200).json({
+        success: true,
+        message: "Package activated successfully (MLM process error)",
+        mlm_error: mlmError.message
+      });
+    }
+  } catch (error) {
+    console.error("Error in buyPackageFromTopup:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+const transferToTopup = async (req, res) => {
+  try {
+    const { memberId, amount } = req.body;
+
+    if (!memberId) return res.status(400).json({ success: false, message: "Member ID is required" });
+    if (!amount) return res.status(400).json({ success: false, message: "Transfer amount is required" });
+
+    const transferAmount = parseFloat(amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid transfer amount" });
+    }
+
+    const member = await MemberModel.findOne({ Member_id: memberId });
+    if (!member) return res.status(404).json({ success: false, message: "Member not found" });
+
+    // Calculate available balance just like in getWalletWithdraw
+    const allTransactions = await TransactionModel.find({ member_id: memberId });
+
+    const nonLoanTransactions = allTransactions.filter(tx => 
+      !tx.transaction_type?.toLowerCase().includes('loan') &&
+      !tx.description?.toLowerCase().includes('loan')
+    );
+
+    let totalCredits = 0;
+    let totalDebits = 0;
+
+    nonLoanTransactions.forEach((tx) => {
+      totalCredits += parseFloat(tx.ew_credit) || 0;
+      totalDebits += parseFloat(tx.ew_debit) || 0;
+    });
+
+    let availableBalance = totalCredits - totalDebits;
+    availableBalance = Math.max(0, availableBalance);
+
+    if (transferAmount > availableBalance) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient balance for transfer",
+        details: {
+          requested: transferAmount.toFixed(2),
+          available: availableBalance.toFixed(2),
+        }
+      });
+    }
+
+    // Create a transaction for the withdrawal debit
+    const lastTransaction = await TransactionModel.findOne({})
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let newTransactionId = 1;
+    if (lastTransaction && lastTransaction.transaction_id) {
+      const lastIdNumber = parseInt(lastTransaction.transaction_id.replace(/\D/g, ""), 10) || 0;
+      newTransactionId = lastIdNumber + 1;
+    }
+
+    const newTransaction = new TransactionModel({
+      transaction_id: newTransactionId.toString(),
+      transaction_date: new Date(),
+      member_id: memberId,
+      description: "Transfer to Top-up Wallet",
+      transaction_type: "Transfer",
+      ew_credit: 0,
+      ew_debit: transferAmount,
+      status: "Completed",
+      net_amount: transferAmount,
+      gross_amount: transferAmount
+    });
+
+    await newTransaction.save();
+
+    // Add to top-up wallet
+    member.top_up_wallet_balance = (member.top_up_wallet_balance || 0) + transferAmount;
+    await member.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Transferred to top-up wallet successfully",
+      data: {
+        transactionId: newTransaction.transaction_id,
+        transferAmount: transferAmount.toFixed(2),
+        newTopupBalance: member.top_up_wallet_balance.toFixed(2),
+        newAvailableBalance: (availableBalance - transferAmount).toFixed(2)
+      },
+    });
+
+  } catch (error) {
+    console.error("Error in transferToTopup:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup };

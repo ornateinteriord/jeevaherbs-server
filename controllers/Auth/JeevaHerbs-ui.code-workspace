@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../../../../BMS_Bizz_Server/BICCSL-Server"
+		},
+		{
+			"path": "../../../../bluskymicroservices-ui/USDT-worl-club"
 		}
 	],
 	"settings": {}

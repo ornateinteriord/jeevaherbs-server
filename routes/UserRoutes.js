@@ -13,7 +13,7 @@ const Authenticated = require("../middlewares/auth");
 const { triggerMLMCommissions, getMemberCommissionSummary, getDailyPayout, climeRewardLoan, repaymentLoan } = require("../controllers/Users/Payout/PayoutController");
 const { getPendingTransactions, approveWithdrawal } = require("../controllers/Users/payoutPending/pendingTransactions");
 const { processDailyROI } = require("../utils/cronJobs");
-const { getWalletOverview, getWalletWithdraw } = require("../controllers/Users/walletServiece/walletServies");
+const { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup } = require("../controllers/Users/walletServiece/walletServies");
 const { getUplineTree } = require("../controllers/Users/mlmService/mlmService");
 
 
@@ -52,6 +52,9 @@ router.get("/mlm/upline-tree/:member_id", getUplineTree);
 router.get("/overview/:memberId", Authenticated, getWalletOverview);
 router.post("/withdraw/:memberId", Authenticated, getWalletWithdraw);
 router.put('/approve-withdrawal/:transactionId', Authenticated, approveWithdrawal);
+router.post("/manual-topup-request", Authenticated, createManualTopupRequest);
+router.post("/buy-package", Authenticated, buyPackageFromTopup);
+router.post("/transfer-to-topup", Authenticated, transferToTopup);
 
 
 // router.get("/level-benefits/:member_id", getLevelBenefits);
