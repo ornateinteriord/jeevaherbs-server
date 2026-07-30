@@ -141,6 +141,7 @@ const activateMemberPackage = async (req, res) => {
         status: 'active',
         spackage: selectedPackage.name,
         package_value: selectedPackage.value,
+        activationDate: new Date(),
       },
       { new: true }
     );
