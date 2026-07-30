@@ -40,22 +40,35 @@ const getMemberDetails = async (req, res) => {
       ]
     });
 
-    // Get total team count recursively using BFS across all downlines
+    // Get total team count using a single DB query and in-memory BFS (drastically faster)
     const getAllTeamMemberIds = async (sponsorId) => {
+      // Fetch only required fields for all members to build the tree in memory
+      const allMembers = await MemberModel.find({}, { Member_id: 1, Sponsor_code: 1, sponsor_id: 1 }).lean();
+      
+      // Build an adjacency list (sponsor -> array of children)
+      const graph = {};
+      for (const member of allMembers) {
+        const parentId = member.Sponsor_code || member.sponsor_id;
+        if (parentId) {
+          if (!graph[parentId]) graph[parentId] = [];
+          graph[parentId].push(member.Member_id);
+        }
+      }
+
+      // In-memory BFS
       const queue = [sponsorId];
       const visited = new Set();
       let total = 0;
+      
       while (queue.length > 0) {
         const current = queue.shift();
-        const children = await MemberModel.find(
-          { $or: [{ Sponsor_code: current }, { sponsor_id: current }] },
-          { Member_id: 1 }
-        );
-        for (const child of children) {
-          if (!visited.has(child.Member_id)) {
-            visited.add(child.Member_id);
+        const children = graph[current] || [];
+        
+        for (const childId of children) {
+          if (!visited.has(childId)) {
+            visited.add(childId);
             total++;
-            queue.push(child.Member_id);
+            queue.push(childId);
           }
         }
       }
