@@ -7,10 +7,7 @@
 			"path": "../.."
 		},
 		{
-			"path": "../../../../BMS_Bizz_Server/BICCSL-Server"
-		},
-		{
-			"path": "../../../../bluskymicroservices-ui/USDT-worl-club"
+			"path": "../../../../USDT-World-Server/SEPCTRE-BMS-SERVER"
 		}
 	],
 	"settings": {}

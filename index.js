@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config()
 const ImageKit = require("imagekit");
+const http = require("http");
+const { Server } = require("socket.io");
 const connectDB = require("./models/db"); // Your Mongo DB connection file
 
 // ====================== Routes ======================
@@ -13,6 +15,7 @@ const UserRoutes = require("./routes/UserRoutes");
 const AdminRoutes = require("./routes/AdminRoute");
 const KYCRoutes = require("./routes/KYCRoutes");
 const LocationRoutes = require("./routes/LocationRoutes");
+const ChatRoutes = require("./routes/ChatRoutes");
 
 
 
@@ -122,6 +125,7 @@ app.use("/user", UserRoutes);
 app.use("/admin", AdminRoutes);
 app.use("/kyc", KYCRoutes);
 app.use("/location", LocationRoutes);
+app.use("/api/chat", ChatRoutes);
 
 // ======================================================
 //        🏠 HOME
@@ -136,6 +140,45 @@ app.get("/", (req, res) => {
 const { startCronJobs } = require("./utils/cronJobs");
 
 const PORT = process.env.PORT || 5051;
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  },
+});
+
+app.set("io", io);
+
+const activeUsers = new Map();
+app.set("activeUsers", activeUsers);
+
+io.on("connection", (socket) => {
+    socket.on("join", (userId) => {
+        if (!activeUsers.has(userId)) activeUsers.set(userId, []);
+        activeUsers.get(userId).push(socket.id);
+    });
+
+    socket.on("joinRoom", (roomId) => {
+        socket.join(roomId);
+    });
+
+    socket.on("leaveRoom", (roomId) => {
+        socket.leave(roomId);
+    });
+
+    socket.on("disconnect", () => {
+        for (const [userId, sockets] of activeUsers.entries()) {
+            const index = sockets.indexOf(socket.id);
+            if (index !== -1) {
+                sockets.splice(index, 1);
+                if (sockets.length === 0) activeUsers.delete(userId);
+                break;
+            }
+        }
+    });
+});
 
 (async () => {
   try {
@@ -145,8 +188,8 @@ const PORT = process.env.PORT || 5051;
     // Start Cron Jobs
     startCronJobs();
 
-    // Start Express Server
-    app.listen(PORT, () => {
+    // Start Express Server via HTTP server
+    server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
 
