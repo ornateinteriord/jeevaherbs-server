@@ -46,7 +46,7 @@ const MemberSchema = new mongoose.Schema(
     upgrade_package: { type: String },
     upgrade_status: {
       type: String,
-      enum: ["Pending", "Processing", "Approved", "Completed", "Rejected"],
+      enum: ["Pending", "Processing", "Approved", "Completed", "Rejected", "active"],
       default: "Pending"
     },
     level_eligible: { type: String },

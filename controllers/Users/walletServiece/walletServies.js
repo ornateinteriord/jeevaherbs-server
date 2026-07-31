@@ -478,10 +478,11 @@ const getWalletWithdraw = async (req, res) => {
 
 const createManualTopupRequest = async (req, res) => {
   try {
-    const { memberId, amount } = req.body;
+    const { memberId, amount, screenshot } = req.body;
 
     if (!memberId) return res.status(400).json({ success: false, message: "Member ID is required" });
     if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ success: false, message: "Valid amount is required" });
+    if (!screenshot) return res.status(400).json({ success: false, message: "Screenshot is required for manual top-up" });
 
     const member = await MemberModel.findOne({ Member_id: memberId });
     if (!member) return res.status(404).json({ success: false, message: "Member not found" });
@@ -500,7 +501,8 @@ const createManualTopupRequest = async (req, res) => {
       ew_debit: 0,
       status: "Pending",
       net_amount: amount,
-      gross_amount: amount
+      gross_amount: amount,
+      screenshot: screenshot
     });
 
     await newTransaction.save();

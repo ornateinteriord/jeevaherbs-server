@@ -12,13 +12,13 @@ exports.submitKYC = async (req, res) => {
       return res.status(404).json({ message: "Member not found" });
     }
 
-    // Update member with KYC details
     member.account_number = bankAccount;
     member.ifsc_code = ifsc;
     member.Pan_no = pan;
     member.bank_name = bankName;
     member.address = address;
     member.kycStatus = "PROCESSING";
+    member.upgrade_status = "active";
 
     // Save the updated member
     await member.save();

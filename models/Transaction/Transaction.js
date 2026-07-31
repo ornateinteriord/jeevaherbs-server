@@ -59,6 +59,9 @@ const TransactionSchema = new mongoose.Schema(
       payment_amount: { type: Number }
     },
 
+    // Screenshot for Manual QR Payments
+    screenshot: { type: String },
+
     // Idempotency tracking for webhooks
     webhook_processed: { type: Boolean, default: false },
     webhook_processed_at: { type: Date }
