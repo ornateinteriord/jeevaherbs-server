@@ -42,4 +42,8 @@ router.post("/wallet/process-load-request", Authenticated, authorizeRoles("ADMIN
 router.post("/announcement", Authenticated, authorizeRoles("ADMIN"), postAnnouncement);
 router.get("/announcement", getLatestAnnouncement);
 
+const { getPayables, processAdminPayout } = require("../controllers/Users/Payout/PayoutController");
+router.get("/payables", Authenticated, authorizeRoles("ADMIN"), getPayables);
+router.post("/process-payout", Authenticated, authorizeRoles("ADMIN"), processAdminPayout);
+
 module.exports = router;

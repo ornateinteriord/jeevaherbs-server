@@ -694,4 +694,106 @@ const transferToTopup = async (req, res) => {
   }
 };
 
-module.exports = { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup };
+const p2pTopupTransfer = async (req, res) => {
+  try {
+    const { senderId, receiverId, amount } = req.body;
+
+    if (!senderId) return res.status(400).json({ success: false, message: "Sender ID is required" });
+    if (!receiverId) return res.status(400).json({ success: false, message: "Receiver ID is required" });
+    if (!amount) return res.status(400).json({ success: false, message: "Transfer amount is required" });
+    if (senderId === receiverId) return res.status(400).json({ success: false, message: "Cannot transfer to yourself" });
+
+    const transferAmount = parseFloat(amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid transfer amount" });
+    }
+
+    const sender = await MemberModel.findOne({ Member_id: senderId });
+    if (!sender) return res.status(404).json({ success: false, message: "Sender not found" });
+
+    const receiver = await MemberModel.findOne({ Member_id: receiverId });
+    if (!receiver) return res.status(404).json({ success: false, message: "Receiver not found" });
+
+    const availableTopupBalance = sender.top_up_wallet_balance || 0;
+
+    if (transferAmount > availableTopupBalance) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient Top-up balance for transfer",
+        details: {
+          requested: transferAmount.toFixed(2),
+          available: availableTopupBalance.toFixed(2),
+        }
+      });
+    }
+
+    // Get the next transaction ID
+    const lastTransaction = await TransactionModel.findOne({})
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let newTransactionId = 1;
+    if (lastTransaction && lastTransaction.transaction_id) {
+      const lastIdNumber = parseInt(lastTransaction.transaction_id.replace(/\D/g, ""), 10) || 0;
+      newTransactionId = lastIdNumber + 1;
+    }
+
+    // Transaction for Sender (Debit)
+    const senderTx = new TransactionModel({
+      transaction_id: newTransactionId.toString(),
+      transaction_date: new Date(),
+      member_id: senderId,
+      description: `P2P Top-up Transfer to ${receiverId}`,
+      transaction_type: "Transfer",
+      ew_credit: 0,
+      ew_debit: transferAmount,
+      status: "Completed",
+      net_amount: transferAmount,
+      gross_amount: transferAmount
+    });
+    
+    // Transaction for Receiver (Credit)
+    const receiverTx = new TransactionModel({
+      transaction_id: (newTransactionId + 1).toString(),
+      transaction_date: new Date(),
+      member_id: receiverId,
+      description: `P2P Top-up Transfer from ${senderId}`,
+      transaction_type: "Transfer",
+      ew_credit: transferAmount,
+      ew_debit: 0,
+      status: "Completed",
+      net_amount: transferAmount,
+      gross_amount: transferAmount
+    });
+
+    await senderTx.save();
+    await receiverTx.save();
+
+    // Update Top-up balances
+    sender.top_up_wallet_balance -= transferAmount;
+    receiver.top_up_wallet_balance = (receiver.top_up_wallet_balance || 0) + transferAmount;
+    
+    await sender.save();
+    await receiver.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Transferred to user's top-up wallet successfully",
+      data: {
+        transactionId: senderTx.transaction_id,
+        transferAmount: transferAmount.toFixed(2),
+        newTopupBalance: sender.top_up_wallet_balance.toFixed(2),
+      },
+    });
+
+  } catch (error) {
+    console.error("Error in p2pTopupTransfer:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup, p2pTopupTransfer };

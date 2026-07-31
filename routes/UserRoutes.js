@@ -5,6 +5,7 @@ const {
   getMemberDetails,
   UpdateMemberDetails,
   activateMemberPackage,
+  lookupMember,
 } = require("../controllers/Users/Profile/Profile");
 const { getSponsers } = require("../controllers/Users/Sponser/sponser");
 const { getMultiLevelSponsorship } = require("../controllers/Users/Sponser/multiLevelSponsorship");
@@ -13,7 +14,7 @@ const Authenticated = require("../middlewares/auth");
 const { triggerMLMCommissions, getMemberCommissionSummary, getDailyPayout, climeRewardLoan, repaymentLoan } = require("../controllers/Users/Payout/PayoutController");
 const { getPendingTransactions, approveWithdrawal } = require("../controllers/Users/payoutPending/pendingTransactions");
 const { processDailyROI } = require("../utils/cronJobs");
-const { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup } = require("../controllers/Users/walletServiece/walletServies");
+const { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup, p2pTopupTransfer } = require("../controllers/Users/walletServiece/walletServies");
 const { getUplineTree } = require("../controllers/Users/mlmService/mlmService");
 
 
@@ -23,6 +24,7 @@ const router = express.Router();
 
 
 router.get("/member/:id", Authenticated, getMemberDetails);
+router.get("/member-lookup/:memberId", Authenticated, lookupMember);
 router.put("/member/:memberId", Authenticated, UpdateMemberDetails);
 router.put("/activate-package/:memberId", activateMemberPackage);
 
@@ -55,6 +57,7 @@ router.put('/approve-withdrawal/:transactionId', Authenticated, approveWithdrawa
 router.post("/manual-topup-request", Authenticated, createManualTopupRequest);
 router.post("/buy-package", Authenticated, buyPackageFromTopup);
 router.post("/transfer-to-topup", Authenticated, transferToTopup);
+router.post("/p2p-topup-transfer", Authenticated, p2pTopupTransfer);
 
 
 // router.get("/level-benefits/:member_id", getLevelBenefits);

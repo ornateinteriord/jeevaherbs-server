@@ -646,6 +646,102 @@ const repaymentLoan = async (req, res) => {
   }
 };
 
+const getPayables = async (req, res) => {
+  try {
+    const payablesAgg = await MemberModel.aggregate([
+      {
+        $lookup: {
+          from: "transaction_tbl",
+          let: { memberId: "$Member_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$member_id", "$$memberId"] },
+                status: { $in: ["Completed", "Pending", "Approved"] },
+                transaction_type: { $not: /loan|top up wallet|wallet top-up|top up/i },
+                description: { $not: /loan|top up wallet/i }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                totalCredit: { $sum: { $convert: { input: "$ew_credit", to: "double", onError: 0, onNull: 0 } } },
+                totalDebit: { $sum: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } } }
+              }
+            }
+          ],
+          as: "txStats"
+        }
+      },
+      {
+        $unwind: {
+          path: "$txStats",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          member_id: "$Member_id",
+          Name: 1,
+          mobileno: 1,
+          bank_details: 1,
+          account_number: 1,
+          ifsc_code: 1,
+          bank_name: 1,
+          google_pay: 1,
+          phonepe: 1,
+          availableBalance: {
+            $subtract: [
+              { $ifNull: ["$txStats.totalCredit", 0] },
+              { $ifNull: ["$txStats.totalDebit", 0] }
+            ]
+          }
+        }
+      }
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: payablesAgg
+    });
+  } catch (error) {
+    console.error("Error in getPayables:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const processAdminPayout = async (req, res) => {
+  try {
+    const { member_id, amount, payment_mode, reference_number } = req.body;
+    if (!member_id || !amount) {
+      return res.status(400).json({ success: false, message: "Member ID and Amount are required." });
+    }
+    
+    // Create a debit transaction to reduce available balance
+    const payoutTx = new TransactionModel({
+      member_id,
+      transaction_id: "PAY" + Date.now() + Math.floor(Math.random() * 1000),
+      transaction_type: "Admin Payout",
+      description: `Payout processed via ${payment_mode || 'Manual'} (Ref: ${reference_number || 'N/A'})`,
+      ew_credit: "0",
+      ew_debit: amount.toString(),
+      status: "Completed",
+      date: new Date().toISOString()
+    });
+
+    await payoutTx.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payout processed successfully.",
+      data: payoutTx
+    });
+  } catch (error) {
+    console.error("Error processing admin payout:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   triggerMLMCommissions,
   getMemberCommissionSummary,
@@ -654,4 +750,6 @@ module.exports = {
   getRewardLoansByStatus,
   processRewardLoan,
   repaymentLoan,
+  getPayables,
+  processAdminPayout
 };

@@ -584,4 +584,27 @@ const loginAsMember = async (req, res) => {
   }
 };
 
-module.exports = { getMemberDetails, UpdateMemberDetails, getMember, activateMemberPackage, updateMemberStatus, loginAsMember };
+const lookupMember = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    if (!memberId) {
+      return res.status(400).json({ success: false, message: "Member ID is required" });
+    }
+    const member = await MemberModel.findOne({ Member_id: memberId }).select("Member_id Name Member_Name");
+    if (!member) {
+      return res.status(404).json({ success: false, message: "Member not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        Member_id: member.Member_id,
+        Name: member.Name || member.Member_Name
+      }
+    });
+  } catch (error) {
+    console.error("Error in lookupMember:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = { getMemberDetails, UpdateMemberDetails, getMember, activateMemberPackage, updateMemberStatus, loginAsMember, lookupMember };
