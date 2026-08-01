@@ -688,6 +688,7 @@ const getPayables = async (req, res) => {
           account_number: 1,
           ifsc_code: 1,
           bank_name: 1,
+          upiId: 1,
           google_pay: 1,
           phonepe: 1,
           availableBalance: {

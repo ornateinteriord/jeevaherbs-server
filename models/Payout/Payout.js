@@ -14,7 +14,9 @@ const payoutSchema = new mongoose.Schema(
     level: { type: Number }, 
     sponsored_member_id: { type: String }, 
     sponsor_id: { type: String },
-    description: { type: String }
+    description: { type: String },
+    sponsor_status: { type: String },
+    process_date: { type: Date }
   },
   { timestamps: true, collection: "payouts" }
 );

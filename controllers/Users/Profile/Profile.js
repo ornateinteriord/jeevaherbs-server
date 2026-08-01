@@ -475,7 +475,27 @@ const updateMemberStatus = async (req, res) => {
           if (eligibleMembers.length > 0) {
             const globalPayoutsToInsert = [];
             const globalTxToInsert = [];
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const memberIds = eligibleMembers.map(m => m.Member_id);
             
+            const rewardCounts = await TransactionModel.aggregate([
+              {
+                $match: {
+                  member_id: { $in: memberIds },
+                  transaction_type: "Reward",
+                  $or: [
+                    { status: "Completed", transaction_date: { $gte: todayStart } },
+                    { status: "Queued" }
+                  ]
+                }
+              },
+              { $group: { _id: "$member_id", count: { $sum: 1 } } }
+            ]);
+
+            const countMap = {};
+            rewardCounts.forEach(c => { countMap[c._id] = c.count; });
+
             const lastGlobalPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
             let gPayoutId = 1;
             if (lastGlobalPayout && lastGlobalPayout.payout_id) {
@@ -488,35 +508,42 @@ const updateMemberStatus = async (req, res) => {
               gTxId = (parseInt(lastGlobalTx.transaction_id.replace(/\D/g, ""), 10) || 0) + 1;
             }
 
-            const dateStr = new Date().toISOString();
-            const dateObj = new Date();
-
             for (let i = 0; i < eligibleMembers.length; i++) {
               const winner = eligibleMembers[i];
+              const totalRewards = countMap[winner.Member_id] || 0;
+              
+              const offsetDays = Math.floor(totalRewards / 4);
+              const scheduledDate = new Date();
+              scheduledDate.setHours(0,0,0,0);
+              scheduledDate.setDate(scheduledDate.getDate() + offsetDays);
+
+              const payoutStatus = offsetDays === 0 ? "Completed" : "Queued";
               
               globalPayoutsToInsert.push({
                 payout_id: `PAY-${(gPayoutId + i).toString().padStart(6, '0')}`,
-                date: dateStr,
+                date: new Date().toISOString(),
                 memberId: winner.Member_id,
                 payout_type: "Reward",
                 amount: 50,
                 count: 1,
                 days: 1,
-                status: "Completed",
-                description: `Reward from User ${newPoolId} (Single Leg)`
+                status: payoutStatus,
+                description: `Reward from User ${newPoolId} (Single Leg)`,
+                process_date: scheduledDate
               });
 
               globalTxToInsert.push({
                 transaction_id: `TXN-${(gTxId + i).toString().padStart(6, '0')}`,
-                transaction_date: dateObj,
+                transaction_date: new Date(),
                 member_id: winner.Member_id,
                 description: `Reward Payout (Triggered by Pool ID ${newPoolId})`,
                 transaction_type: "Reward",
                 ew_credit: 50,
                 ew_debit: 0,
-                status: "Completed",
+                status: payoutStatus,
                 net_amount: 50,
-                gross_amount: 50
+                gross_amount: 50,
+                process_date: scheduledDate
               });
             }
 

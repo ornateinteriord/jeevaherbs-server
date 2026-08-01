@@ -147,6 +147,7 @@ const getWalletOverview = async (req, res) => {
           breakdown: `₹${completedAndPendingTx.reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0).toFixed(2)} - ₹${completedAndPendingTx.reduce((acc, tx) => acc + (parseFloat(tx.ew_debit) || 0), 0).toFixed(2)} = ₹${Math.max(0, availableBalance).toFixed(2)}`,
           note: "Available balance excludes loan transactions. Pending withdrawals: ₹" + pendingWithdrawals.toFixed(2)
         },
+        transactions: nonLoanTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       },
     });
   } catch (error) {

@@ -14,10 +14,11 @@ const TransactionSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['active', 'Completed', 'Pending', 'Approved', 'Rejected', 'Processing', 'Failed'],
+        values: ['active', 'Completed', 'Pending', 'Approved', 'Rejected', 'Processing', 'Failed', 'Queued'],
       },
       default: 'Pending'
     },
+    process_date: { type: Date },
     deduction: { type: String },
     net_amount: { type: String },
     withdrawal_amount: { type: String },

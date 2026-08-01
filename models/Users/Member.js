@@ -56,6 +56,7 @@ const MemberSchema = new mongoose.Schema(
     account_number: { type: String },
     ifsc_code: { type: String },
     bank_name: { type: String },
+    upiId: { type: String },
     profile_image: { type: String },
     sponsor_id: { type: String, default: null },
     direct_referrals: { type: [String], default: [] },

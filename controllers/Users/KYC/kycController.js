@@ -3,7 +3,7 @@ const MemberModel = require("../../../models/Users/Member");
 // Submit KYC details
 exports.submitKYC = async (req, res) => {
   try {
-    const { ref_no, bankAccount, ifsc, pan, address, bankName } = req.body;
+    const { ref_no, bankAccount, ifsc, pan, address, bankName, upiId } = req.body;
 
     // Find the member by ref_no
     const member = await MemberModel.findOne({ Member_id: ref_no });
@@ -17,6 +17,7 @@ exports.submitKYC = async (req, res) => {
     member.Pan_no = pan;
     member.bank_name = bankName;
     member.address = address;
+    member.upiId = upiId;
     member.kycStatus = "PROCESSING";
     member.upgrade_status = "active";
 
@@ -74,7 +75,7 @@ exports.getKycSubmissions = async (req, res) => {
     const skip = (Math.max(parseInt(page, 10), 1) - 1) * parseInt(limit, 10);
 
     const submissions = await MemberModel.find(filter)
-      .select("Member_id Name mobileno email account_number ifsc_code bank_name Pan_no kycStatus address createdAt updatedAt")
+      .select("Member_id Name mobileno email account_number ifsc_code bank_name Pan_no upiId kycStatus address createdAt updatedAt")
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit, 10));

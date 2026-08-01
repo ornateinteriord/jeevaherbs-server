@@ -146,11 +146,50 @@ const processDailyROI = async () => {
   }
 };
 
+const processQueuedSingleLegIncomes = async () => {
+  console.log(`[Cron] Starting Queued Single Leg processing at ${moment().format('YYYY-MM-DD HH:mm:ss')}`);
+  try {
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Update Transactions
+    const txResult = await TransactionModel.updateMany(
+      {
+        transaction_type: "Reward",
+        status: "Queued",
+        process_date: { $lte: todayEnd }
+      },
+      {
+        $set: { status: "Completed", transaction_date: new Date() }
+      }
+    );
+
+    // Update Payouts
+    const payoutResult = await PayoutModel.updateMany(
+      {
+        payout_type: "Reward",
+        status: "Queued",
+        process_date: { $lte: todayEnd }
+      },
+      {
+        $set: { status: "Completed", date: new Date().toISOString() }
+      }
+    );
+
+    console.log(`[Cron] Processed ${txResult.modifiedCount} Queued Single Leg transactions.`);
+    return { success: true, processedCount: txResult.modifiedCount };
+  } catch (error) {
+    console.error('[Cron] Error processing Queued Single Leg incomes:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 const startCronJobs = () => {
   // Run every day at midnight (00:00)
   cron.schedule('0 0 * * *', async () => {
     await processDailyROI();
+    await processQueuedSingleLegIncomes();
   });
 };
 
-module.exports = { startCronJobs, processDailyROI };
+module.exports = { startCronJobs, processDailyROI, processQueuedSingleLegIncomes };
