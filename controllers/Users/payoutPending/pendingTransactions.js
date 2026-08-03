@@ -8,33 +8,42 @@ const MemberModel = require("../../../models/Users/Member");
 const getPendingTransactions = async (req, res) => {
   try {
     // Step 1: Get all pending transactions
-    const {status} = req.params;
+    const { status } = req.params;
     const pendingTransactions = await TransactionModel.find({ status });
 
     if (!pendingTransactions.length) {
-      return res.json({
+      return res.status(200).json({
         success: true,
         count: 0,
-        message: `No ${status} transactions found`,
+        message: "No transactions found",
       });
     }
 
-    // Step 2: For each transaction, get member details
-    const transactionsWithMember = await Promise.all(
-      pendingTransactions.map(async (txn) => {
-        const member = await MemberModel.findOne(
-          { Member_id: txn.member_id },
-          { mobileno: 1, ifsc_code: 1, account_number: 1, _id: 0 }
-        );
-        return {
-          ...txn.toObject(),
-          memberDetails: member || {},
-        };
-      })
+    // Step 2: Extract unique member IDs from transactions
+    const memberIds = [...new Set(pendingTransactions.map((txn) => txn.member_id))];
+
+    // Step 3: Fetch all required members in one query
+    const members = await MemberModel.find(
+      { Member_id: { $in: memberIds } },
+      { Member_id: 1, mobileno: 1, ifsc_code: 1, account_number: 1, _id: 0 }
     );
 
-    // Step 3: Send response
-    res.json({
+    // Create a map for quick lookup
+    const memberMap = {};
+    members.forEach((member) => {
+      memberMap[member.Member_id] = member;
+    });
+
+    // Step 4: Map member details to transactions
+    const transactionsWithMember = pendingTransactions.map((txn) => {
+      return {
+        ...txn.toObject(),
+        memberDetails: memberMap[txn.member_id] || {},
+      };
+    });
+
+    // Step 5: Send response
+    res.status(200).json({
       success: true,
       count: transactionsWithMember.length,
       data: transactionsWithMember,
@@ -50,7 +59,7 @@ const getPendingTransactions = async (req, res) => {
 const approveWithdrawal = async (req, res) => {
   try {
     const { transactionId } = req.params;
-    
+
     // Find pending withdrawal transaction by ID
     const transaction = await TransactionModel.findOne({
       transaction_id: transactionId,

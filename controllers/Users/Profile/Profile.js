@@ -496,6 +496,18 @@ const updateMemberStatus = async (req, res) => {
             const countMap = {};
             rewardCounts.forEach(c => { countMap[c._id] = c.count; });
 
+            const totalHistoricalRewards = await TransactionModel.aggregate([
+              {
+                $match: {
+                  member_id: { $in: memberIds },
+                  transaction_type: "Reward"
+                }
+              },
+              { $group: { _id: "$member_id", count: { $sum: 1 } } }
+            ]);
+            const historicalCountMap = {};
+            totalHistoricalRewards.forEach(c => { historicalCountMap[c._id] = c.count; });
+
             const lastGlobalPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
             let gPayoutId = 1;
             if (lastGlobalPayout && lastGlobalPayout.payout_id) {
@@ -510,6 +522,9 @@ const updateMemberStatus = async (req, res) => {
 
             for (let i = 0; i < eligibleMembers.length; i++) {
               const winner = eligibleMembers[i];
+              const totalHistorical = historicalCountMap[winner.Member_id] || 0;
+              if (totalHistorical >= 100) continue; // Enforce strict 100 limit (5000 max)
+
               const totalRewards = countMap[winner.Member_id] || 0;
               
               const offsetDays = Math.floor(totalRewards / 4);

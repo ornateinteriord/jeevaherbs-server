@@ -722,12 +722,12 @@ const processAdminPayout = async (req, res) => {
     const payoutTx = new TransactionModel({
       member_id,
       transaction_id: "PAY" + Date.now() + Math.floor(Math.random() * 1000),
-      transaction_type: "Admin Payout",
-      description: `Payout processed via ${payment_mode || 'Manual'} (Ref: ${reference_number || 'N/A'})`,
+      transaction_type: "Withdrawal",
+      description: `Admin Payout processed via ${payment_mode || 'Manual'} (Ref: ${reference_number || 'N/A'})`,
       ew_credit: "0",
       ew_debit: amount.toString(),
       status: "Completed",
-      date: new Date().toISOString()
+      transaction_date: new Date().toISOString()
     });
 
     await payoutTx.save();

@@ -24,6 +24,36 @@ const getTransactionDetails = async (req, res) => {
       query.status = status;
     }
 
+    // Process any Queued Rewards whose time has come before fetching
+    if (loggedInMemberId) {
+      const today = new Date();
+      const PayoutModel = require("../../models/Payout/Payout");
+      
+      await TransactionModel.updateMany(
+        {
+          member_id: loggedInMemberId,
+          transaction_type: "Reward",
+          status: "Queued",
+          process_date: { $lte: today }
+        },
+        {
+          $set: { status: "Completed", transaction_date: new Date() }
+        }
+      );
+
+      await PayoutModel.updateMany(
+        {
+          memberId: loggedInMemberId,
+          payout_type: "Reward",
+          status: "Queued",
+          process_date: { $lte: today }
+        },
+        {
+          $set: { status: "Completed", date: new Date().toISOString() }
+        }
+      );
+    }
+
     // Filter by transaction type (for income management pages)
     if (transaction_type && transaction_type !== "all") {
       query.transaction_type = transaction_type;

@@ -14,6 +14,34 @@ const getWalletOverview = async (req, res) => {
       return res.status(404).json({ success: false, message: "Member not found" });
     }
 
+    // Process any Queued Rewards whose time has come (fallback for cron)
+    const today = new Date();
+    const PayoutModel = require("../../../models/Payout/Payout");
+    
+    await TransactionModel.updateMany(
+      {
+        member_id: memberId,
+        transaction_type: "Reward",
+        status: "Queued",
+        process_date: { $lte: today }
+      },
+      {
+        $set: { status: "Completed", transaction_date: new Date() }
+      }
+    );
+
+    await PayoutModel.updateMany(
+      {
+        memberId: memberId,
+        payout_type: "Reward",
+        status: "Queued",
+        process_date: { $lte: today }
+      },
+      {
+        $set: { status: "Completed", date: new Date().toISOString() }
+      }
+    );
+
     const transactions = await TransactionModel.find({ member_id: memberId });
 
     // Filter out loan-related and top-up-wallet transactions
