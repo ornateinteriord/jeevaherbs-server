@@ -7,7 +7,7 @@ const messageSchema = new mongoose.Schema(
         senderName: { type: String, default: "" },
         senderRole: { type: String, default: "USER" },
         recipientId: { type: String, default: "" },
-        messageType: { type: String, enum: ["text", "image", "file"], default: "text" },
+        messageType: { type: String, enum: ["text", "image", "file", "audio"], default: "text" },
         text: { type: String, default: "" },
         imageUrl: { type: String, default: "" },
         fileName: { type: String, default: "" },

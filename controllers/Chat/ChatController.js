@@ -226,7 +226,7 @@ const getSupportChat = async (req, res) => {
                 roomId, participants,
                 participantDetails: [
                     { memberId: userId, name: currentUser.Name, role: "USER", profileImage: currentUser.profile_image || "" },
-                    { memberId: adminId, name: "Support", role: "ADMIN", profileImage: "" },
+                    { memberId: adminId, name: "Admin", role: "ADMIN", profileImage: "https://cdn-icons-png.flaticon.com/512/9322/9322127.png" },
                 ],
                 unreadCount: new Map(),
             });

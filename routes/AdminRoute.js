@@ -9,7 +9,7 @@ const { editTicket, getTickets } = require("../controllers/Users/Ticket/TicketCo
 const Authenticated = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/authorizeRole");
 const { getLoadRequests, processLoadRequest } = require("../controllers/Admin/Wallet/WalletController");
-const { postAnnouncement, getLatestAnnouncement } = require("../controllers/Admin/AnnouncementController");
+const { postAnnouncement, getLatestAnnouncement, broadcastChatMessage } = require("../controllers/Admin/AnnouncementController");
 
 const router = require("express").Router();
 
@@ -23,6 +23,7 @@ router.put('/update-member/:memberId',Authenticated,authorizeRoles("ADMIN"),Upda
 router.get('/get-member/:memberId',Authenticated,authorizeRoles("ADMIN"),getMember)
 router.post('/login-as-member/:memberId',Authenticated,authorizeRoles("ADMIN"),loginAsMember)
 router.get('/getnews',Authenticated,authorizeRoles("ADMIN"),getNews)
+
 router.post('/addnews',Authenticated,authorizeRoles("ADMIN"),addNews)
 router.get('/getholiday',Authenticated,authorizeRoles("ADMIN"),getHoliday)
 router.post('/addholiday',Authenticated,authorizeRoles("ADMIN"),addHoliday)
@@ -32,7 +33,6 @@ router.put('/update-status/:memberId',updateMemberStatus)
 router.get('/all-daily-payouts', Authenticated, authorizeRoles("ADMIN"), getDailyPayout);
 // router.get('/all-daily-payouts/:member_id', Authenticated, authorizeRoles("ADMIN"), getDailyPayout);
 
-
 router.get('/reward-loans/:status', getRewardLoansByStatus);
 router.put('/reward-loans/:memberId/:action', processRewardLoan);
 
@@ -40,6 +40,7 @@ router.get("/wallet/load-requests", Authenticated, authorizeRoles("ADMIN"), getL
 router.post("/wallet/process-load-request", Authenticated, authorizeRoles("ADMIN"), processLoadRequest);
 
 router.post("/announcement", Authenticated, authorizeRoles("ADMIN"), postAnnouncement);
+router.post("/broadcast-chat", Authenticated, authorizeRoles("ADMIN"), broadcastChatMessage);
 router.get("/announcement", getLatestAnnouncement);
 
 const { getPayables, processAdminPayout } = require("../controllers/Users/Payout/PayoutController");
