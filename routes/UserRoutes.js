@@ -13,7 +13,7 @@ const { createTicket, getTickets } = require("../controllers/Users/Ticket/Ticket
 const Authenticated = require("../middlewares/auth");
 const { triggerMLMCommissions, getMemberCommissionSummary, getDailyPayout, climeRewardLoan, repaymentLoan } = require("../controllers/Users/Payout/PayoutController");
 const { getPendingTransactions, approveWithdrawal } = require("../controllers/Users/payoutPending/pendingTransactions");
-const { processDailyROI } = require("../utils/cronJobs");
+const { processDailyROI, processQueuedSingleLegIncomes } = require("../utils/cronJobs");
 const { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup, p2pTopupTransfer } = require("../controllers/Users/walletServiece/walletServies");
 const { getUplineTree } = require("../controllers/Users/mlmService/mlmService");
 
@@ -67,13 +67,29 @@ router.post("/clime-reward-loan/:memberId", climeRewardLoan)
 
 router.post("/repayment-loan/:memberId", repaymentLoan)
 
-// Manual trigger for Daily ROI testing
+// Manual trigger for Daily ROI and Single Leg testing
 router.post("/trigger-roi", async (req, res) => {
-  const result = await processDailyROI();
-  if (result.success) {
-    res.status(200).json(result);
-  } else {
-    res.status(500).json(result);
+  try {
+    const roiResult = await processDailyROI();
+    const singleLegResult = await processQueuedSingleLegIncomes();
+    
+    if (roiResult.success || singleLegResult.success) {
+      res.status(200).json({
+        success: true,
+        message: "Manual processing completed.",
+        roi: roiResult,
+        singleLeg: singleLegResult
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Processing failed.",
+        roi: roiResult,
+        singleLeg: singleLegResult
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

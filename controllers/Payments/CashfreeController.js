@@ -6,6 +6,7 @@ const MemberModel = require("../../models/Users/Member");
 const PaymentModel = require("../../models/Payments/Payment");
 const PayoutModel = require("../../models/Payout/Payout");
 const { triggerMLMCommissions } = require("../Users/Payout/PayoutController");
+const { singleLegMutex } = require("../../utils/mutex");
 
 // Cashfree API Base URLs
 const CASHFREE_BASE = process.env.NODE_ENV === "PROD"
@@ -424,7 +425,9 @@ exports.handleWebhook = async (req, res) => {
             */
 
             // --- NEW GLOBAL INCOME (SINGLE LEG) LOGIC ---
-            const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
+            await singleLegMutex.lock();
+            try {
+              const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
             const maxPoolId = memberWithMaxPoolId && memberWithMaxPoolId.global_pool_id ? memberWithMaxPoolId.global_pool_id : 0;
             const newPoolId = maxPoolId + 1;
             
@@ -534,6 +537,9 @@ exports.handleWebhook = async (req, res) => {
                   console.log(`✅ Distributed 50 INR to ${globalPayoutsToInsert.length} upline single-leg members.`);
                 }
               }
+            }
+            } finally {
+              singleLegMutex.unlock();
             }
             // --- END NEW GLOBAL INCOME LOGIC ---
           } catch (err) {
