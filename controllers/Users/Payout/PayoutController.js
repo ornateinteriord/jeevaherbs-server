@@ -726,6 +726,8 @@ const processAdminPayout = async (req, res) => {
       description: `Admin Payout processed via ${payment_mode || 'Manual'} (Ref: ${reference_number || 'N/A'})`,
       ew_credit: "0",
       ew_debit: amount.toString(),
+      net_amount: amount,
+      gross_amount: amount,
       status: "Completed",
       transaction_date: new Date().toISOString()
     });
