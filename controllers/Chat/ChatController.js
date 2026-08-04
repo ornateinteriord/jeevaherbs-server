@@ -7,9 +7,9 @@ const AdminModel = require("../../models/Admin/Admin");
 const getRooms = async (req, res) => {
     try {
         const userId = req.user.memberId || req.user.Member_id || req.user.id;
-        const userRole = req.user.role;
+        const userRole = (req.user.role || "").toUpperCase();
         let rooms;
-        if (userRole === "admin" || userRole === "ADMIN") {
+        if (userRole === "ADMIN") {
             rooms = await ChatRoomModel.find({ participants: { $regex: /^ADMIN_/ } }).sort({ lastMessageTime: -1 }).lean();
         } else {
             rooms = await ChatRoomModel.find({ participants: userId }).sort({ lastMessageTime: -1 }).lean();
@@ -18,6 +18,7 @@ const getRooms = async (req, res) => {
             const unreadCount = userRole === "ADMIN" ? room.unreadCount?.["ADMIN_1"] || 0 : room.unreadCount?.[userId] || 0;
             return { ...room, unreadCount };
         });
+
         res.status(200).json({ success: true, data: roomsWithUnread });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch chat rooms", error: error.message });
@@ -29,7 +30,7 @@ const getMessages = async (req, res) => {
     try {
         const { roomId } = req.params;
         const userId = req.user.memberId || req.user.Member_id || req.user.id;
-        const userRole = req.user.role;
+        const userRole = (req.user.role || "").toUpperCase();
         const limit = parseInt(req.query.limit) || 50;
         const skip = parseInt(req.query.skip) || 0;
 
@@ -37,16 +38,36 @@ const getMessages = async (req, res) => {
             ? await ChatRoomModel.findOne({ roomId, participants: { $regex: /^ADMIN_/ } })
             : await ChatRoomModel.findOne({ roomId, participants: userId });
 
+        console.log(`[getMessages] roomId: ${roomId}, userRole: ${userRole}, userId: ${userId}, roomFound: ${!!room}`);
+
         if (!room) {
             // Check if it's a virtual room ID for the user
             const participants = roomId.split('_');
             if (participants.includes(userId)) {
+                console.log(`[getMessages] Returning empty array because userId is in participants`);
                 return res.status(200).json({ success: true, data: [] });
             }
-            return res.status(403).json({ success: false, message: "Access denied to this chat room" });
+            if (roomId === "GLOBAL_BROADCAST") {
+                console.log(`[getMessages] Allowing fetch for GLOBAL_BROADCAST`);
+            } else {
+                console.log(`[getMessages] Access denied!`);
+                return res.status(403).json({ success: false, message: "Access denied to this chat room" });
+            }
         }
 
-        const messages = await MessageModel.find({ roomId }).sort({ createdAt: 1 }).skip(skip).limit(limit).lean();
+        let query;
+        if (roomId === "GLOBAL_BROADCAST") {
+            query = { roomId };
+        } else if (roomId.includes("ADMIN_1")) {
+            query = { $or: [{ roomId }, { roomId: "GLOBAL_BROADCAST" }] };
+        } else {
+            query = { roomId };
+        }
+
+        const messages = await MessageModel.find(query)
+            .sort({ createdAt: 1 }).skip(skip).limit(limit).lean();
+
+        console.log(`[getMessages] Returning ${messages.length} messages`);
         res.status(200).json({ success: true, data: messages });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch messages", error: error.message });
@@ -58,7 +79,7 @@ const markAsRead = async (req, res) => {
     try {
         const { roomId } = req.params;
         const userId = req.user.memberId || req.user.Member_id || req.user.id;
-        const userRole = req.user.role;
+        const userRole = (req.user.role || "").toUpperCase();
 
         let room = userRole === "ADMIN"
             ? await ChatRoomModel.findOne({ roomId, participants: { $regex: /^ADMIN_/ } })
@@ -165,7 +186,7 @@ const sendMessage = async (req, res) => {
                 const participants = parts.sort();
                 const member1 = await MemberModel.findOne({ Member_id: participants[0] });
                 const member2 = await MemberModel.findOne({ Member_id: participants[1] });
-                
+
                 chatRoom = new ChatRoomModel({
                     roomId,
                     participants,
