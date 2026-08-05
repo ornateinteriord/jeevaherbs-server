@@ -3,6 +3,7 @@ const moment = require('moment');
 const MemberModel = require('../models/Users/Member');
 const TransactionModel = require('../models/Transaction/Transaction');
 const PayoutModel = require('../models/Payout/Payout');
+const { getNextTransactionId } = require('../utils/idGenerator');
 
 const processDailyROI = async () => {
   // Get the current day of the week (0 is Sunday, 6 is Saturday)
@@ -32,14 +33,8 @@ const processDailyROI = async () => {
         continue;
       }
 
-      // Get the latest transaction to generate a new transaction ID
-      const lastTransaction = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
-      let newTransactionId = 1;
-      if (lastTransaction && lastTransaction.transaction_id) {
-        const lastIdNumber = parseInt(lastTransaction.transaction_id.replace(/\D/g, ""), 10) || 0;
-        newTransactionId = lastIdNumber + 1;
-      }
-      const formattedTxId = `TXN-${newTransactionId.toString().padStart(6, '0')}`;
+      // Use the robust sequential ID generator
+      const formattedTxId = await getNextTransactionId();
 
       // Create the Daily ROI transaction
       const newTransaction = new TransactionModel({
@@ -58,13 +53,7 @@ const processDailyROI = async () => {
       await newTransaction.save();
 
       // Create the Payout record
-      const lastPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
-      let newPayoutId = 1;
-      if (lastPayout && lastPayout.payout_id) {
-        const lastPayoutIdNumber = parseInt(lastPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0;
-        newPayoutId = lastPayoutIdNumber + 1;
-      }
-      const formattedPayoutId = `PAY-${newPayoutId.toString().padStart(6, '0')}`;
+      const formattedPayoutId = await getNextTransactionId();
 
       const newPayout = new PayoutModel({
         payout_id: formattedPayoutId,
@@ -100,7 +89,7 @@ const processDailyROI = async () => {
       for (const upline of uplineSponsors) {
         if (upline.sponsor_status === 'active' && incentiveRates[upline.level]) {
           const incentiveAmount = incentiveRates[upline.level];
-          const incentiveTxId = `TXN-${newTransactionId.toString().padStart(6, '0')}-${upline.level}`;
+          const incentiveTxId = await getNextTransactionId();
           const incTransaction = new TransactionModel({
             transaction_id: incentiveTxId,
             transaction_date: new Date(),
@@ -118,7 +107,7 @@ const processDailyROI = async () => {
           await incTransaction.save();
 
           // Payout record for Daily Incentive
-          const incPayoutId = `PAY-${newPayoutId.toString().padStart(6, '0')}-${upline.level}`;
+          const incPayoutId = await getNextTransactionId();
           const incPayout = new PayoutModel({
             payout_id: incPayoutId,
             date: new Date().toISOString(),
