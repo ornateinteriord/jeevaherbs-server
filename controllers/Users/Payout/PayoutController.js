@@ -718,6 +718,10 @@ const processAdminPayout = async (req, res) => {
       return res.status(400).json({ success: false, message: "Member ID and Amount are required." });
     }
     
+    const grossAmount = parseFloat(amount);
+    const deductionAmount = grossAmount * 0.10;
+    const netPayoutAmount = grossAmount - deductionAmount;
+    
     // Create a debit transaction to reduce available balance
     const payoutTx = new TransactionModel({
       member_id,
@@ -725,9 +729,10 @@ const processAdminPayout = async (req, res) => {
       transaction_type: "Withdrawal",
       description: `Admin Payout processed via ${payment_mode || 'Manual'} (Ref: ${reference_number || 'N/A'})`,
       ew_credit: "0",
-      ew_debit: amount.toString(),
-      net_amount: amount,
-      gross_amount: amount,
+      ew_debit: grossAmount.toString(), // Deduct full amount from wallet
+      deduction: deductionAmount,
+      net_amount: netPayoutAmount,
+      gross_amount: grossAmount,
       status: "Completed",
       transaction_date: new Date().toISOString()
     });
