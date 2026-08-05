@@ -128,8 +128,16 @@ app.use("/location", LocationRoutes);
 app.use("/api/chat", ChatRoutes);
 
 // ======================================================
-//        🏠 HOME
+//        🏠 HOME & HEALTH
 // ======================================================
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Server is healthy",
+        timestamp: new Date().toISOString(),
+    });
+});
+
 app.get("/", (req, res) => {
   res.send(`🚀 ${process.env.PROJECT_NAME || "MSCS Server"} Running Securely`);
 });
