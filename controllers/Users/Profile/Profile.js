@@ -488,7 +488,7 @@ const updateMemberStatus = async (req, res) => {
                   member_id: { $in: memberIds },
                   transaction_type: "Reward",
                   $or: [
-                    { status: "Completed", transaction_date: { $gte: todayStart } },
+                    { status: "Completed", createdAt: { $gte: todayStart } },
                     { status: "Queued" }
                   ]
                 }
@@ -517,11 +517,8 @@ const updateMemberStatus = async (req, res) => {
               gPayoutId = (parseInt(lastGlobalPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0) + 1;
             }
 
-            const lastGlobalTx = await TransactionModel.findOne({}).sort({ createdAt: -1 }).exec();
-            let gTxId = 1;
-            if (lastGlobalTx && lastGlobalTx.transaction_id) {
-              gTxId = (parseInt(lastGlobalTx.transaction_id.replace(/\D/g, ""), 10) || 0) + 1;
-            }
+            const { getNextTransactionIds } = require("../../utils/idGenerator");
+            const newTxIds = await getNextTransactionIds(eligibleMembers.length);
 
             for (let i = 0; i < eligibleMembers.length; i++) {
               const winner = eligibleMembers[i];
@@ -551,7 +548,7 @@ const updateMemberStatus = async (req, res) => {
               });
 
               globalTxToInsert.push({
-                transaction_id: `TXN-${(gTxId + i).toString().padStart(6, '0')}`,
+                transaction_id: newTxIds[i],
                 transaction_date: new Date(),
                 member_id: winner.Member_id,
                 description: `Reward Payout (Triggered by Pool ID ${newPoolId})`,

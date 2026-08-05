@@ -62,7 +62,7 @@ const getTransactionDetails = async (req, res) => {
       }
     }
 
-    const transactions = await TransactionModel.find(query).sort({ transaction_date: -1 });
+    const transactions = await TransactionModel.find(query).sort({ createdAt: -1 });
 
     if (!transactions.length) {
       return res.status(200).json({ 
