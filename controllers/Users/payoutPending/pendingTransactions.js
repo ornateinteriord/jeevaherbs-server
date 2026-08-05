@@ -9,7 +9,7 @@ const getPendingTransactions = async (req, res) => {
   try {
     // Step 1: Get all pending transactions
     const { status } = req.params;
-    const pendingTransactions = await TransactionModel.find({ status });
+    const pendingTransactions = await TransactionModel.find({ status }).sort({ createdAt: -1 });
 
     if (!pendingTransactions.length) {
       return res.status(200).json({
