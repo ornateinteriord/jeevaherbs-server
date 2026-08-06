@@ -674,6 +674,14 @@ const getPayables = async (req, res) => {
         }
       },
       {
+        $lookup: {
+          from: "member_tbl",
+          localField: "Member_id",
+          foreignField: "Sponsor_code",
+          as: "directs"
+        }
+      },
+      {
         $unwind: {
           path: "$txStats",
           preserveNullAndEmptyArrays: true
@@ -691,6 +699,8 @@ const getPayables = async (req, res) => {
           upiId: 1,
           google_pay: 1,
           phonepe: 1,
+          directsCount: { $size: { $ifNull: ["$directs", []] } },
+          totalPaid: { $ifNull: ["$txStats.totalDebit", 0] },
           availableBalance: {
             $subtract: [
               { $ifNull: ["$txStats.totalCredit", 0] },
