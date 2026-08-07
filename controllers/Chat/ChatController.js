@@ -220,9 +220,17 @@ const sendMessage = async (req, res) => {
             io.to(roomId).emit("receiveMessage", { ...message.toJSON() });
             if (activeUsers && recipient) {
                 const socketIds = activeUsers.get(recipient);
+                console.log(`Backend emitting to recipient ${recipient}, socketIds: ${socketIds}`);
                 if (socketIds && socketIds.length > 0) {
-                    socketIds.forEach(socketId => io.to(socketId).emit("new_message_notification", { roomId, senderId, senderName, text: displayText.substring(0, 50) }));
+                    socketIds.forEach(socketId => {
+                        console.log(`Emitting new_message_notification to socketId: ${socketId}`);
+                        io.to(socketId).emit("new_message_notification", { roomId, senderId, senderName, text: displayText.substring(0, 50) });
+                    });
+                } else {
+                    console.log(`No active socketIds found for recipient ${recipient}`);
                 }
+            } else {
+                console.log(`Missing activeUsers Map or recipient. recipient: ${recipient}`);
             }
         }
         res.status(201).json({ success: true, data: message });
