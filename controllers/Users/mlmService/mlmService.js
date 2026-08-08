@@ -25,16 +25,30 @@ const TransactionModel = require("../../../models/Transaction/Transaction");
  * - Levels 3-10 (0.5%): ₹25
  */
 const commissionRates = {
-  1: 500,
-  2: 100,
-  3: 25,
-  4: 25,
-  5: 25,
-  6: 25,
-  7: 25,
-  8: 25,
-  9: 25,
-  10: 25
+  5000: {
+    1: 500,
+    2: 100,
+    3: 25,
+    4: 25,
+    5: 25,
+    6: 25,
+    7: 25,
+    8: 25,
+    9: 25,
+    10: 25
+  },
+  999: {
+    1: 100,
+    2: 20,
+    3: 5,
+    4: 5,
+    5: 5,
+    6: 5,
+    7: 5,
+    8: 5,
+    9: 5,
+    10: 5
+  }
 };
 
 const getOrdinal = (number) => {
@@ -103,6 +117,14 @@ const findUplineSponsors = async (memberId, maxLevels = 10) => {
  */
 const calculateCommissions = async (newMemberId, directSponsorId) => {
   try {
+    // Get the new member's package value to determine commission rates
+    const newMember = await MemberModel.findOne({ Member_id: newMemberId });
+    if (!newMember) {
+      console.log(`⚠️ New member ${newMemberId} not found`);
+      return [];
+    }
+    const packageValue = newMember.package_value == 999 ? 999 : 5000;
+    const currentRates = commissionRates[packageValue];
     // Find all upline sponsors up to 10 levels
     const uplineSponsors = await findUplineSponsors(newMemberId, 10);
 
@@ -121,8 +143,8 @@ const calculateCommissions = async (newMemberId, directSponsorId) => {
         continue;
       }
 
-      // Get commission amount based on level
-      const commissionAmount = commissionRates[upline.level] || 0;
+      // Get commission amount based on level and package
+      const commissionAmount = currentRates[upline.level] || 0;
 
       if (commissionAmount > 0) {
         commissions.push({
@@ -344,7 +366,7 @@ const getUplineTree = async (memberId, maxLevels = 10) => {
           status: sponsor.status,
           direct_referrals: sponsor.direct_referrals || [],
           total_team: sponsor.total_team || 0,
-          commission_rate: commissionRates[level],
+          commission_rate: commissionRates[5000][level], // Defaulting to 5000 for summary view
           eligible: sponsor.status === 'active'
         });
 
@@ -368,7 +390,7 @@ const getCommissionSummary = () => {
     level_2_commission: 100,
     levels_3_to_10_commission: 25,
     total_potential: 800, // 500 + 100 + (8 * 25)
-    rates: commissionRates,
+    rates: commissionRates[5000],
     condition: "Commissions only for sponsors with 'active' status"
   };
 };
@@ -394,7 +416,9 @@ const processMemberActivation = async (activatedMemberId) => {
       return { success: false, message: "Sponsor not active; payout skipped" };
     }
 
-    const amount = commissionRates[1] || 0;
+    const packageValue = member.package_value == 999 ? 999 : 5000;
+    const currentRates = commissionRates[packageValue];
+    const amount = currentRates[1] || 0;
     if (amount <= 0) {
       return { success: false, message: "No commission configured for level 1" };
     }

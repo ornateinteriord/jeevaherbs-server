@@ -33,8 +33,16 @@ const processDailyROI = async () => {
         continue;
       }
 
-      // Use the robust sequential ID generator
-      const formattedTxId = await getNextTransactionId();
+      const packageValue = member.package_value == 999 ? 999 : 5000;
+      const maxDays = packageValue === 999 ? 50 : 100;
+      
+      if (member.roi_days_completed >= maxDays) {
+        continue;
+      }
+
+      if (packageValue !== 999) {
+        // Use the robust sequential ID generator
+        const formattedTxId = await getNextTransactionId();
 
       // Create the Daily ROI transaction
       const newTransaction = new TransactionModel({
@@ -67,7 +75,8 @@ const processDailyROI = async () => {
         description: `Daily ROI - Day ${member.roi_days_completed + 1}`
       });
 
-      await newPayout.save();
+        await newPayout.save();
+      }
 
       // Update member record
       member.roi_days_completed += 1;
@@ -75,15 +84,16 @@ const processDailyROI = async () => {
       await member.save();
 
       // ---------------------------------------------------------
-      // Daily Incentive Logic: Distribute ₹3, ₹2, ₹1 to Top 3 Uplines
+      // Daily Incentive Logic
       // ---------------------------------------------------------
       const { findUplineSponsors } = require('../controllers/Users/mlmService/mlmService');
-      const uplineSponsors = await findUplineSponsors(member.Member_id, 3); // Max 3 levels
+      const maxLevels = packageValue === 999 ? 5 : 3;
+      const uplineSponsors = await findUplineSponsors(member.Member_id, maxLevels);
       
-      const incentiveRates = {
-        1: 3,
-        2: 2,
-        3: 1
+      const incentiveRates = packageValue === 999 ? {
+        1: 1, 2: 1, 3: 1, 4: 1, 5: 1
+      } : {
+        1: 3, 2: 2, 3: 1
       };
 
       for (const upline of uplineSponsors) {
@@ -135,50 +145,11 @@ const processDailyROI = async () => {
   }
 };
 
-const processQueuedSingleLegIncomes = async () => {
-  console.log(`[Cron] Starting Queued Single Leg processing at ${moment().format('YYYY-MM-DD HH:mm:ss')}`);
-  try {
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    // Update Transactions
-    const txResult = await TransactionModel.updateMany(
-      {
-        transaction_type: "Reward",
-        status: "Queued",
-        process_date: { $lte: todayEnd }
-      },
-      {
-        $set: { status: "Completed", transaction_date: new Date() }
-      }
-    );
-
-    // Update Payouts
-    const payoutResult = await PayoutModel.updateMany(
-      {
-        payout_type: "Reward",
-        status: "Queued",
-        process_date: { $lte: todayEnd }
-      },
-      {
-        $set: { status: "Completed", date: new Date().toISOString() }
-      }
-    );
-
-    console.log(`[Cron] Processed ${txResult.modifiedCount} Queued Single Leg transactions.`);
-    return { success: true, processedCount: txResult.modifiedCount };
-  } catch (error) {
-    console.error('[Cron] Error processing Queued Single Leg incomes:', error);
-    return { success: false, error: error.message };
-  }
-};
-
 const startCronJobs = () => {
   // Run every day at midnight (00:00)
   cron.schedule('0 0 * * *', async () => {
     await processDailyROI();
-    await processQueuedSingleLegIncomes();
   });
 };
 
-module.exports = { startCronJobs, processDailyROI, processQueuedSingleLegIncomes };
+module.exports = { startCronJobs, processDailyROI };

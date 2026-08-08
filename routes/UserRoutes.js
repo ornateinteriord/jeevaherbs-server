@@ -13,7 +13,7 @@ const { createTicket, getTickets } = require("../controllers/Users/Ticket/Ticket
 const Authenticated = require("../middlewares/auth");
 const { triggerMLMCommissions, getMemberCommissionSummary, getDailyPayout, climeRewardLoan, repaymentLoan } = require("../controllers/Users/Payout/PayoutController");
 const { getPendingTransactions, approveWithdrawal } = require("../controllers/Users/payoutPending/pendingTransactions");
-const { processDailyROI, processQueuedSingleLegIncomes } = require("../utils/cronJobs");
+const { processDailyROI } = require("../utils/cronJobs");
 const { getWalletOverview, getWalletWithdraw, createManualTopupRequest, buyPackageFromTopup, transferToTopup, p2pTopupTransfer } = require("../controllers/Users/walletServiece/walletServies");
 const { getUplineTree } = require("../controllers/Users/mlmService/mlmService");
 
@@ -71,14 +71,12 @@ router.post("/repayment-loan/:memberId", repaymentLoan)
 router.post("/trigger-roi", async (req, res) => {
   try {
     const roiResult = await processDailyROI();
-    const singleLegResult = await processQueuedSingleLegIncomes();
     
-    if (roiResult.success || singleLegResult.success) {
+    if (roiResult.success) {
       res.status(200).json({
         success: true,
         message: "Manual processing completed.",
-        roi: roiResult,
-        singleLeg: singleLegResult
+        roi: roiResult
       });
     } else {
       res.status(500).json({

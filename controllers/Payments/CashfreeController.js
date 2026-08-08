@@ -299,8 +299,8 @@ exports.handleWebhook = async (req, res) => {
         { Member_id: paymentRecord.memberId, status: "Pending" },
         {
           $set: {
-            spackage: "Package 5000",
-            package_value: 5000,
+            spackage: paymentRecord.amount == 999 ? "Package 999" : "Package 5000",
+            package_value: paymentRecord.amount == 999 ? 999 : 5000,
             activationDate: new Date(),
             last_roi_date: new Date(),
             status: "active"
@@ -428,43 +428,46 @@ exports.handleWebhook = async (req, res) => {
             await singleLegMutex.lock();
             try {
               const memberWithMaxPoolId = await MemberModel.findOne().sort('-global_pool_id').exec();
-            const maxPoolId = memberWithMaxPoolId && memberWithMaxPoolId.global_pool_id ? memberWithMaxPoolId.global_pool_id : 0;
-            const newPoolId = maxPoolId + 1;
-            
-            member.global_pool_id = newPoolId;
-            await member.save();
+              const maxPoolId = memberWithMaxPoolId && memberWithMaxPoolId.global_pool_id ? memberWithMaxPoolId.global_pool_id : 0;
+              const newPoolId = maxPoolId + 1;
+              
+              member.global_pool_id = newPoolId;
+              await member.save();
 
-            // Distribute 50 INR to up to 100 users who joined immediately before this user
-            const startPoolId = Math.max(1, newPoolId - 100);
-            if (newPoolId > 1) {
+              // --- Calculate Daily Activation Sequence (N) ---
+              const todayStart = new Date();
+              todayStart.setHours(0, 0, 0, 0);
+
+              const todayEnd = new Date();
+              todayEnd.setHours(23, 59, 59, 999);
+
+              const activationsTodayCount = await MemberModel.countDocuments({
+                  global_pool_id: { $exists: true, $ne: null },
+                  activationDate: { $gte: todayStart, $lte: todayEnd }
+              });
+
+              // N is the activation sequence number for today
+              const N = activationsTodayCount;
+              
+              // Calculate the eligible pool ID block
+              const startPoolId = (N - 1) * 100 + 1;
+              const endPoolId = N * 100;
+
+              console.log(`[Single Leg] Activation #${N} today. Paying block ${startPoolId} to ${endPoolId}`);
+
+              // Find eligible members strictly inside the chunk boundaries
+              // Excluding the newly activated member 
               const eligibleMembers = await MemberModel.find({
-                global_pool_id: { $gte: startPoolId, $lt: newPoolId }
+                global_pool_id: { $gte: startPoolId, $lte: endPoolId },
+                Member_id: { $ne: member.Member_id } 
               }).exec();
 
               if (eligibleMembers.length > 0) {
                 const globalPayoutsToInsert = [];
                 const globalTxToInsert = [];
-                const todayStart = new Date();
-                todayStart.setHours(0, 0, 0, 0);
                 const memberIds = eligibleMembers.map(m => m.Member_id);
                 
-                const rewardCounts = await TransactionModel.aggregate([
-                  {
-                    $match: {
-                      member_id: { $in: memberIds },
-                      transaction_type: "Reward",
-                      $or: [
-                        { status: "Completed", createdAt: { $gte: todayStart } },
-                        { status: "Queued" }
-                      ]
-                    }
-                  },
-                  { $group: { _id: "$member_id", count: { $sum: 1 } } }
-                ]);
-
-                const countMap = {};
-                rewardCounts.forEach(c => { countMap[c._id] = c.count; });
-                
+                // We only need to check historical total to enforce 100 limit (₹5000 max)
                 const totalHistoricalRewards = await TransactionModel.aggregate([
                   {
                     $match: {
@@ -485,56 +488,61 @@ exports.handleWebhook = async (req, res) => {
 
                 const { getNextTransactionIds } = require("../../utils/idGenerator");
                 const newTxIds = await getNextTransactionIds(eligibleMembers.length);
+                let actualInsertCount = 0;
 
                 for (let i = 0; i < eligibleMembers.length; i++) {
                   const winner = eligibleMembers[i];
                   const totalHistorical = historicalCountMap[winner.Member_id] || 0;
-                  if (totalHistorical >= 100) continue; // Enforce strict 100 limit (5000 max)
-
-                  const totalRewards = countMap[winner.Member_id] || 0;
                   
-                  const offsetDays = Math.floor(totalRewards / 4);
+                  if (totalHistorical >= 100) {
+                     continue; // Enforce strict 100 limit
+                  }
+                  
+                  // Instant Completed status
+                  const payoutStatus = "Completed";
                   const scheduledDate = new Date();
-                  scheduledDate.setHours(0,0,0,0);
-                  scheduledDate.setDate(scheduledDate.getDate() + offsetDays);
-
-                  const payoutStatus = offsetDays === 0 ? "Completed" : "Queued";
+                  const rewardAmount = winner.package_value == 999 ? 10 : 50;
                   
                   globalPayoutsToInsert.push({
-                    payout_id: `PAY-${(gPayoutId + i).toString().padStart(6, '0')}`,
+                    payout_id: `PAY-${(gPayoutId + actualInsertCount).toString().padStart(6, '0')}`,
                     date: new Date().toISOString(),
                     memberId: winner.Member_id,
                     payout_type: "Reward",
-                    amount: 50,
+                    amount: rewardAmount,
                     count: 1,
                     days: 1,
                     status: payoutStatus,
-                    description: `Reward from User ${newPoolId} (Single Leg)`,
+                    description: `Reward from User ${newPoolId} (Single Leg Block ${N})`,
                     process_date: scheduledDate
                   });
 
                   globalTxToInsert.push({
-                    transaction_id: newTxIds[i],
+                    transaction_id: newTxIds[actualInsertCount],
                     transaction_date: new Date(),
                     member_id: winner.Member_id,
                     description: `Reward Payout (Triggered by Pool ID ${newPoolId})`,
                     transaction_type: "Reward",
-                    ew_credit: 50,
+                    ew_credit: rewardAmount,
                     ew_debit: 0,
                     status: payoutStatus,
-                    net_amount: 50,
-                    gross_amount: 50,
+                    net_amount: rewardAmount,
+                    gross_amount: rewardAmount,
                     process_date: scheduledDate
                   });
+                  
+                  actualInsertCount++;
                 }
 
                 if (globalPayoutsToInsert.length > 0) {
                   await PayoutModel.insertMany(globalPayoutsToInsert);
                   await TransactionModel.insertMany(globalTxToInsert);
-                  console.log(`✅ Distributed 50 INR to ${globalPayoutsToInsert.length} upline single-leg members.`);
+                  console.log(`✅ Distributed rewards to ${globalPayoutsToInsert.length} members in block ${N}.`);
+                } else {
+                  console.log(`⚠️ Block ${N} had eligible members, but all reached reward limits.`);
                 }
+              } else {
+                 console.log(`⚠️ Block ${N} is empty (No users found from ${startPoolId} to ${endPoolId}). Skipping reward distribution.`);
               }
-            }
             } finally {
               singleLegMutex.unlock();
             }
