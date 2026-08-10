@@ -484,16 +484,28 @@ const updateMemberStatus = async (req, res) => {
           // N is the activation sequence number for today
           const N = activationsTodayCount;
           
-          // Calculate the eligible pool ID block
-          const startPoolId = (N - 1) * 100 + 1;
-          const endPoolId = N * 100;
+          // Calculate the eligible pool ID block for 5000 Package (Old Logic)
+          const start5000PoolId = (N - 1) * 100 + 1;
+          const end5000PoolId = N * 100;
 
-          console.log(`[Single Leg] Activation #${N} today. Paying block ${startPoolId} to ${endPoolId}`);
+          // Calculate the eligible pool ID block for 999 Package (Wrap-Around Logic)
+          let totalBlocks = Math.ceil(maxPoolId / 100);
+          if (totalBlocks === 0) totalBlocks = 1;
+          const current99BlockIndex = (N - 1) % totalBlocks;
+          const start999PoolId = current99BlockIndex * 100 + 1;
+          const end999PoolId = (current99BlockIndex + 1) * 100;
 
-          // Find eligible members strictly inside the chunk boundaries
+          console.log(`[Single Leg] Activation #${N} today. Paying 999 block ${start999PoolId}-${end999PoolId}, 5000 block ${start5000PoolId}-${end5000PoolId}`);
+
+          // Find eligible members strictly inside their respective chunk boundaries
           // Excluding the newly activated member 
           const eligibleMembers = await MemberModel.find({
-            global_pool_id: { $gte: startPoolId, $lte: endPoolId },
+            $or: [
+              { package_value: 999, global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
+              { package_value: "999", global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
+              { package_value: 5000, global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } },
+              { package_value: "5000", global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } }
+            ],
             Member_id: { $ne: updatedMember.Member_id } 
           }).exec();
 
@@ -502,18 +514,31 @@ const updateMemberStatus = async (req, res) => {
             const globalTxToInsert = [];
             const memberIds = eligibleMembers.map(m => m.Member_id);
             
-            // We only need to check historical total to enforce 100 limit (₹5000 max)
-            const totalHistoricalRewards = await TransactionModel.aggregate([
+            // Check historical totals AND today's totals
+            const todayStartQuery = new Date();
+            todayStartQuery.setHours(0, 0, 0, 0);
+
+            const allRewards = await TransactionModel.aggregate([
               {
                 $match: {
                   member_id: { $in: memberIds },
                   transaction_type: "Reward"
                 }
               },
-              { $group: { _id: "$member_id", count: { $sum: 1 } } }
+              {
+                $group: {
+                  _id: "$member_id",
+                  totalCount: { $sum: 1 },
+                  todayCount: {
+                    $sum: {
+                      $cond: [{ $gte: ["$createdAt", todayStartQuery] }, 1, 0]
+                    }
+                  }
+                }
+              }
             ]);
-            const historicalCountMap = {};
-            totalHistoricalRewards.forEach(c => { historicalCountMap[c._id] = c.count; });
+            const countMap = {};
+            allRewards.forEach(c => { countMap[c._id] = { total: c.totalCount, today: c.todayCount }; });
 
             const lastGlobalPayout = await PayoutModel.findOne({}).sort({ createdAt: -1 }).exec();
             let gPayoutId = 1;
@@ -527,16 +552,19 @@ const updateMemberStatus = async (req, res) => {
 
             for (let i = 0; i < eligibleMembers.length; i++) {
               const winner = eligibleMembers[i];
-              const totalHistorical = historicalCountMap[winner.Member_id] || 0;
+              const winnerCounts = countMap[winner.Member_id] || { total: 0, today: 0 };
               
-              if (totalHistorical >= 100) {
-                 continue; // Enforce strict 100 limit
+              if (winner.package_value == 999 || winner.package_value == "999") {
+                if (winnerCounts.total >= 100) continue; // Max 100 total (₹2000)
+                if (winnerCounts.today >= 2) continue;   // Max 2 times per day (₹40)
+              } else {
+                if (winnerCounts.total >= 100) continue; // Max 100 total (₹5000)
               }
               
               // Instant Completed status
               const payoutStatus = "Completed";
               const scheduledDate = new Date();
-              const rewardAmount = winner.package_value == 999 ? 10 : 50;
+              const rewardAmount = (winner.package_value == 999 || winner.package_value == "999") ? 20 : 50;
               
               globalPayoutsToInsert.push({
                 payout_id: `PAY-${(gPayoutId + actualInsertCount).toString().padStart(6, '0')}`,
@@ -573,10 +601,10 @@ const updateMemberStatus = async (req, res) => {
               await TransactionModel.insertMany(globalTxToInsert);
               console.log(`✅ Distributed rewards to ${globalPayoutsToInsert.length} members in block ${N}.`);
             } else {
-              console.log(`⚠️ Block ${N} had eligible members, but all reached reward limits.`);
+              console.log(`⚠️ Block ${N} had eligible members, but all reached reward limits (or daily limits).`);
             }
           } else {
-             console.log(`⚠️ Block ${N} is empty (No users found from ${startPoolId} to ${endPoolId}). Skipping reward distribution.`);
+             console.log(`⚠️ Block ${N} is empty (No eligible 999/5000 users found in bounds). Skipping reward distribution.`);
           }
         } finally {
           singleLegMutex.unlock();
