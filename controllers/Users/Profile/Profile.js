@@ -495,17 +495,28 @@ const updateMemberStatus = async (req, res) => {
           const start999PoolId = current99BlockIndex * 100 + 1;
           const end999PoolId = (current99BlockIndex + 1) * 100;
 
-          console.log(`[Single Leg] Activation #${N} today. Paying 999 block ${start999PoolId}-${end999PoolId}, 5000 block ${start5000PoolId}-${end5000PoolId}`);
+          // Determine which package to pay based on the new member's package
+          const newMemberPackage = updatedMember.package_value == 999 || updatedMember.package_value == "999" ? 999 : 5000;
+          let orConditions = [];
+
+          if (newMemberPackage === 999) {
+            console.log(`[Single Leg] Activation #${N} today (999 Pkg). Paying 999 block ${start999PoolId}-${end999PoolId}`);
+            orConditions = [
+              { package_value: 999, global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
+              { package_value: "999", global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } }
+            ];
+          } else {
+            console.log(`[Single Leg] Activation #${N} today (5000 Pkg). Paying 5000 block ${start5000PoolId}-${end5000PoolId}`);
+            orConditions = [
+              { package_value: 5000, global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } },
+              { package_value: "5000", global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } }
+            ];
+          }
 
           // Find eligible members strictly inside their respective chunk boundaries
           // Excluding the newly activated member 
           const eligibleMembers = await MemberModel.find({
-            $or: [
-              { package_value: 999, global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
-              { package_value: "999", global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
-              { package_value: 5000, global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } },
-              { package_value: "5000", global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } }
-            ],
+            $or: orConditions,
             Member_id: { $ne: updatedMember.Member_id } 
           }).exec();
 
