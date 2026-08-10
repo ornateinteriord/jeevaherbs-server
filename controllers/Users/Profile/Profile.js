@@ -484,41 +484,48 @@ const updateMemberStatus = async (req, res) => {
           // N is the activation sequence number for today
           const N = activationsTodayCount;
           
-          // Calculate the eligible pool ID block for 5000 Package (Old Logic)
-          const start5000PoolId = (N - 1) * 100 + 1;
-          const end5000PoolId = N * 100;
-
-          // Calculate the eligible pool ID block for 999 Package (Wrap-Around Logic)
-          let totalBlocks = Math.ceil(maxPoolId / 100);
-          if (totalBlocks === 0) totalBlocks = 1;
-          const current99BlockIndex = (N - 1) % totalBlocks;
-          const start999PoolId = current99BlockIndex * 100 + 1;
-          const end999PoolId = (current99BlockIndex + 1) * 100;
-
           // Determine which package to pay based on the new member's package
           const newMemberPackage = updatedMember.package_value == 999 || updatedMember.package_value == "999" ? 999 : 5000;
-          let orConditions = [];
+          let eligibleMembers = [];
 
           if (newMemberPackage === 999) {
-            console.log(`[Single Leg] Activation #${N} today (999 Pkg). Paying 999 block ${start999PoolId}-${end999PoolId}`);
-            orConditions = [
-              { package_value: 999, global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } },
-              { package_value: "999", global_pool_id: { $gte: start999PoolId, $lte: end999PoolId } }
-            ];
+            const total999Users = await MemberModel.countDocuments({
+              package_value: { $in: [999, "999"] },
+              Member_id: { $ne: updatedMember.Member_id }
+            });
+            
+            let totalBlocks = Math.ceil(total999Users / 100);
+            if (totalBlocks === 0) totalBlocks = 1;
+            
+            const currentBlockIndex = (N - 1) % totalBlocks;
+            const skipAmount = currentBlockIndex * 100;
+            
+            console.log(`[Single Leg] Activation #${N} today (999 Pkg). Paying 999 block index ${currentBlockIndex} (skipping ${skipAmount})`);
+            
+            eligibleMembers = await MemberModel.find({
+              package_value: { $in: [999, "999"] },
+              Member_id: { $ne: updatedMember.Member_id }
+            }).sort({ global_pool_id: 1 }).skip(skipAmount).limit(100).exec();
+            
           } else {
-            console.log(`[Single Leg] Activation #${N} today (5000 Pkg). Paying 5000 block ${start5000PoolId}-${end5000PoolId}`);
-            orConditions = [
-              { package_value: 5000, global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } },
-              { package_value: "5000", global_pool_id: { $gte: start5000PoolId, $lte: end5000PoolId } }
-            ];
+            const total5000Users = await MemberModel.countDocuments({
+              package_value: { $in: [5000, "5000"] },
+              Member_id: { $ne: updatedMember.Member_id }
+            });
+            
+            let totalBlocks = Math.ceil(total5000Users / 100);
+            if (totalBlocks === 0) totalBlocks = 1;
+            
+            const currentBlockIndex = (N - 1) % totalBlocks;
+            const skipAmount = currentBlockIndex * 100;
+            
+            console.log(`[Single Leg] Activation #${N} today (5000 Pkg). Paying 5000 block index ${currentBlockIndex} (skipping ${skipAmount})`);
+            
+            eligibleMembers = await MemberModel.find({
+              package_value: { $in: [5000, "5000"] },
+              Member_id: { $ne: updatedMember.Member_id }
+            }).sort({ global_pool_id: 1 }).skip(skipAmount).limit(100).exec();
           }
-
-          // Find eligible members strictly inside their respective chunk boundaries
-          // Excluding the newly activated member 
-          const eligibleMembers = await MemberModel.find({
-            $or: orConditions,
-            Member_id: { $ne: updatedMember.Member_id } 
-          }).exec();
 
           if (eligibleMembers.length > 0) {
             const globalPayoutsToInsert = [];
@@ -557,7 +564,7 @@ const updateMemberStatus = async (req, res) => {
               gPayoutId = (parseInt(lastGlobalPayout.payout_id.toString().replace(/\D/g, ""), 10) || 0) + 1;
             }
 
-            const { getNextTransactionIds } = require("../../utils/idGenerator");
+            const { getNextTransactionIds } = require("../../../utils/idGenerator");
             const newTxIds = await getNextTransactionIds(eligibleMembers.length);
             let actualInsertCount = 0;
 
