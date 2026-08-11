@@ -25,7 +25,7 @@ const getPendingTransactions = async (req, res) => {
     // Step 3: Fetch all required members in one query
     const members = await MemberModel.find(
       { Member_id: { $in: memberIds } },
-      { Member_id: 1, mobileno: 1, ifsc_code: 1, account_number: 1, _id: 0 }
+      { Member_id: 1, mobileno: 1, ifsc_code: 1, account_number: 1, package_value: 1, spackage: 1, _id: 0 }
     );
 
     // Create a map for quick lookup

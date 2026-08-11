@@ -699,6 +699,8 @@ const getPayables = async (req, res) => {
           upiId: 1,
           google_pay: 1,
           phonepe: 1,
+          package_value: 1,
+          spackage: 1,
           directsCount: { $size: { $ifNull: ["$directs", []] } },
           totalPaid: { $ifNull: ["$txStats.totalDebit", 0] },
           availableBalance: {
