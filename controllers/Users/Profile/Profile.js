@@ -491,7 +491,8 @@ const updateMemberStatus = async (req, res) => {
           if (newMemberPackage === 999) {
             const total999Users = await MemberModel.countDocuments({
               package_value: { $in: [999, "999"] },
-              Member_id: { $ne: updatedMember.Member_id }
+              Member_id: { $ne: updatedMember.Member_id },
+              status: { $regex: /^active$/i }
             });
             
             let totalBlocks = Math.ceil(total999Users / 100);
@@ -504,13 +505,15 @@ const updateMemberStatus = async (req, res) => {
             
             eligibleMembers = await MemberModel.find({
               package_value: { $in: [999, "999"] },
-              Member_id: { $ne: updatedMember.Member_id }
+              Member_id: { $ne: updatedMember.Member_id },
+              status: { $regex: /^active$/i }
             }).sort({ global_pool_id: 1 }).skip(skipAmount).limit(100).exec();
             
           } else {
             const total5000Users = await MemberModel.countDocuments({
               package_value: { $in: [5000, "5000"] },
-              Member_id: { $ne: updatedMember.Member_id }
+              Member_id: { $ne: updatedMember.Member_id },
+              status: { $regex: /^active$/i }
             });
             
             let totalBlocks = Math.ceil(total5000Users / 100);
@@ -523,7 +526,8 @@ const updateMemberStatus = async (req, res) => {
             
             eligibleMembers = await MemberModel.find({
               package_value: { $in: [5000, "5000"] },
-              Member_id: { $ne: updatedMember.Member_id }
+              Member_id: { $ne: updatedMember.Member_id },
+              status: { $regex: /^active$/i }
             }).sort({ global_pool_id: 1 }).skip(skipAmount).limit(100).exec();
           }
 
