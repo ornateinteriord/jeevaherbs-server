@@ -32,8 +32,9 @@ const envOrigins = (process.env.FRONTEND_URL || "")
 
 const allowedOrigins = [
   ...envOrigins,
-  "https://jeevaherbs-ui.vercel.app",
+  "https://jeevaherbs.com",
   "https://www.jeevaherbs.com",
+  "https://jeevaherbs-ui.vercel.app",
   "https://mscs-beige.vercel.app",
   "https://biccsl.vercel.app",
   "https://vgk-club-ui.vercel.app",
@@ -131,11 +132,11 @@ app.use("/api/chat", ChatRoutes);
 //        🏠 HOME & HEALTH
 // ======================================================
 app.get("/health", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Server is healthy",
-        timestamp: new Date().toISOString(),
-    });
+  res.status(200).json({
+    success: true,
+    message: "Server is healthy",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.get("/", (req, res) => {
@@ -163,29 +164,29 @@ const activeUsers = new Map();
 app.set("activeUsers", activeUsers);
 
 io.on("connection", (socket) => {
-    socket.on("join", (userId) => {
-        if (!activeUsers.has(userId)) activeUsers.set(userId, []);
-        activeUsers.get(userId).push(socket.id);
-    });
+  socket.on("join", (userId) => {
+    if (!activeUsers.has(userId)) activeUsers.set(userId, []);
+    activeUsers.get(userId).push(socket.id);
+  });
 
-    socket.on("joinRoom", (roomId) => {
-        socket.join(roomId);
-    });
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+  });
 
-    socket.on("leaveRoom", (roomId) => {
-        socket.leave(roomId);
-    });
+  socket.on("leaveRoom", (roomId) => {
+    socket.leave(roomId);
+  });
 
-    socket.on("disconnect", () => {
-        for (const [userId, sockets] of activeUsers.entries()) {
-            const index = sockets.indexOf(socket.id);
-            if (index !== -1) {
-                sockets.splice(index, 1);
-                if (sockets.length === 0) activeUsers.delete(userId);
-                break;
-            }
-        }
-    });
+  socket.on("disconnect", () => {
+    for (const [userId, sockets] of activeUsers.entries()) {
+      const index = sockets.indexOf(socket.id);
+      if (index !== -1) {
+        sockets.splice(index, 1);
+        if (sockets.length === 0) activeUsers.delete(userId);
+        break;
+      }
+    }
+  });
 });
 
 (async () => {
