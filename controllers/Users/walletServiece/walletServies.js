@@ -143,6 +143,26 @@ const getWalletOverview = async (req, res) => {
     const totalLoanCredits = loanTransactions.reduce((acc, tx) => acc + (parseFloat(tx.ew_credit) || 0), 0);
     const totalLoanDebits = loanTransactions.reduce((acc, tx) => acc + (parseFloat(tx.ew_debit) || 0), 0);
     const netLoanBalance = totalLoanCredits - totalLoanDebits;
+    const totalBenefits = levelBenefits + directBenefits + repaymentCommission + dailyRoi + dailyIncentive + globalIncome;
+
+    // Count direct referrals
+    const directCount = await MemberModel.countDocuments({ 
+      $or: [
+        { Sponsor_code: member.Member_id },
+        { sponsor_id: member.Member_id }
+      ]
+    });
+
+    // 5000 Package logic
+    const is5000Pkg = member.package_value == 5000 || member.spackage == "5000";
+    const is5000Required = Boolean(is5000Pkg && member.roi_days_completed >= 100);
+
+    // 999 Package logic
+    const is999Pkg = member.package_value == 999 || member.spackage == "999" || member.spackage == 999;
+    const is999Required = Boolean(is999Pkg && (
+      (directCount === 0 && totalBenefits >= 2000) ||
+      (directCount >= 1 && totalBenefits >= 3000)
+    ));
 
     return res.status(200).json({
       success: true,
@@ -160,8 +180,12 @@ const getWalletOverview = async (req, res) => {
         dailyRoi: dailyRoi.toFixed(2),
         dailyIncentive: dailyIncentive.toFixed(2),
         globalIncome: globalIncome.toFixed(2),
-        totalBenefits: (levelBenefits + directBenefits + repaymentCommission + dailyRoi + dailyIncentive + globalIncome).toFixed(2),
+        totalBenefits: totalBenefits.toFixed(2),
         pendingWithdrawals: pendingWithdrawals.toFixed(2),
+        reTopUp: {
+          is5000Required,
+          is999Required
+        },
         // Loan information (for transparency)
         loanInfo: {
           totalLoanAmount: totalLoanCredits.toFixed(2),

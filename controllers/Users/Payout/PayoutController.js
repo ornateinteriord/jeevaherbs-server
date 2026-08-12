@@ -682,6 +682,36 @@ const getPayables = async (req, res) => {
         }
       },
       {
+        $lookup: {
+          from: "transaction_tbl",
+          let: { memberId: "$Member_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$member_id", "$$memberId"] },
+                transaction_type: { $regex: /withdrawal/i },
+                status: "Completed"
+              }
+            },
+            { $sort: { createdAt: -1 } },
+            { $limit: 1 },
+            {
+              $project: {
+                amount: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } },
+                date: { $ifNull: ["$transaction_date", "$createdAt"] }
+              }
+            }
+          ],
+          as: "lastPayout"
+        }
+      },
+      {
+        $unwind: {
+          path: "$lastPayout",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
         $unwind: {
           path: "$txStats",
           preserveNullAndEmptyArrays: true
@@ -703,6 +733,8 @@ const getPayables = async (req, res) => {
           spackage: 1,
           directsCount: { $size: { $ifNull: ["$directs", []] } },
           totalPaid: { $ifNull: ["$txStats.totalDebit", 0] },
+          lastPayoutAmount: { $ifNull: ["$lastPayout.amount", 0] },
+          lastPayoutDate: "$lastPayout.date",
           availableBalance: {
             $subtract: [
               { $ifNull: ["$txStats.totalCredit", 0] },
