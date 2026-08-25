@@ -648,7 +648,22 @@ const repaymentLoan = async (req, res) => {
 
 const getPayables = async (req, res) => {
   try {
-    const payablesAgg = await MemberModel.aggregate([
+    let { page = 1, limit = 15, packageFilter } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const initialMatch = {};
+    if (packageFilter && packageFilter !== 'undefined') {
+      const parsedPackageFilter = parseInt(packageFilter);
+      initialMatch.$or = [
+        { package_value: parsedPackageFilter },
+        { spackage: parsedPackageFilter }
+      ];
+    }
+
+    const pipeline = [
+      { $match: initialMatch },
       {
         $lookup: {
           from: "transaction_tbl",
@@ -742,12 +757,23 @@ const getPayables = async (req, res) => {
             ]
           }
         }
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [{ $skip: skip }, { $limit: limit }]
+        }
       }
-    ]);
+    ];
+
+    const result = await MemberModel.aggregate(pipeline);
+    const totalRows = result[0].metadata[0] ? result[0].metadata[0].total : 0;
+    const data = result[0].data;
 
     return res.status(200).json({
       success: true,
-      data: payablesAgg
+      totalRows,
+      data
     });
   } catch (error) {
     console.error("Error in getPayables:", error);
