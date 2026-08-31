@@ -223,12 +223,12 @@ const getWalletWithdraw = async (req, res) => {
     const member = await MemberModel.findOne({ Member_id: memberId });
     if (!member) return res.status(404).json({ success: false, message: "Member not found" });
 
-    // Allow withdrawals only on 10th and 25th
-    const currentDay = new Date().getDate();
-    if (currentDay !== 10 && currentDay !== 25) {
+    // Allow withdrawals only from Monday to Friday
+    const currentDay = new Date().getDay(); // 0 is Sunday, 6 is Saturday
+    if (currentDay === 0 || currentDay === 6) {
       return res.status(400).json({ 
         success: false, 
-        message: "Withdrawals are only allowed on the 10th and 25th of every month." 
+        message: "Withdrawals are only allowed from Monday to Friday." 
       });
     }
 
@@ -386,18 +386,7 @@ const getWalletWithdraw = async (req, res) => {
       });
     }
 
-    if (withdrawalAmount > 1000) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Maximum withdrawal amount is ₹1000",
-        maximum: 1000,
-        loanStatus: {
-          hasUnpaidLoan: hasUnpaidLoan,
-          isWithdrawalAllowed: !hasUnpaidLoan,
-          message: hasUnpaidLoan ? "Withdrawal blocked - Unpaid loan from before last Saturday" : "No unpaid loans"
-        }
-      });
-    }
+
 
     // Check if member has unpaid loan from before last Saturday
     if (hasUnpaidLoan) {
