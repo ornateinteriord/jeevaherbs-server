@@ -64,27 +64,23 @@ const getTransactionDetails = async (req, res) => {
 
     let transactions;
     if (userRole === "ADMIN") {
-      transactions = await TransactionModel.aggregate([
-        { $match: query },
-        { $sort: { createdAt: -1 } },
-        {
-          $lookup: {
-            from: "member_tbl",
-            localField: "member_id",
-            foreignField: "Member_id",
-            as: "member_info"
-          }
-        },
-        {
-          $addFields: {
-            Name: { $arrayElemAt: ["$member_info.Name", 0] },
-            member_name: { $arrayElemAt: ["$member_info.Name", 0] }
-          }
-        },
-        { $project: { member_info: 0 } }
-      ]);
+      const txs = await TransactionModel.find(query).sort({ createdAt: -1 }).lean();
+      
+      const MemberModel = require("../../models/Users/Member");
+      const members = await MemberModel.find({}, { Member_id: 1, Name: 1 }).lean();
+      
+      const memberMap = {};
+      for (const m of members) {
+        memberMap[m.Member_id] = m.Name;
+      }
+      
+      transactions = txs.map(tx => ({
+        ...tx,
+        Name: tx.Name || memberMap[tx.member_id],
+        member_name: tx.Name || memberMap[tx.member_id]
+      }));
     } else {
-      transactions = await TransactionModel.find(query).sort({ createdAt: -1 });
+      transactions = await TransactionModel.find(query).sort({ createdAt: -1 }).lean();
     }
 
     if (!transactions.length) {

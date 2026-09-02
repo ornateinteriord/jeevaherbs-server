@@ -665,103 +665,106 @@ const getPayables = async (req, res) => {
     const pipeline = [
       { $match: initialMatch },
       {
-        $lookup: {
-          from: "transaction_tbl",
-          let: { memberId: "$Member_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$member_id", "$$memberId"] },
-                status: { $in: ["Completed", "Pending", "Approved"] },
-                transaction_type: { $not: /loan|top up wallet|wallet top-up|top up/i },
-                description: { $not: /loan|top up wallet/i }
-              }
-            },
-            {
-              $group: {
-                _id: null,
-                totalCredit: { $sum: { $convert: { input: "$ew_credit", to: "double", onError: 0, onNull: 0 } } },
-                totalDebit: { $sum: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } } }
-              }
-            }
-          ],
-          as: "txStats"
-        }
-      },
-      {
-        $lookup: {
-          from: "member_tbl",
-          localField: "Member_id",
-          foreignField: "Sponsor_code",
-          as: "directs"
-        }
-      },
-      {
-        $lookup: {
-          from: "transaction_tbl",
-          let: { memberId: "$Member_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$member_id", "$$memberId"] },
-                transaction_type: { $regex: /withdrawal/i },
-                status: "Completed"
-              }
-            },
-            { $sort: { createdAt: -1 } },
-            { $limit: 1 },
-            {
-              $project: {
-                amount: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } },
-                date: { $ifNull: ["$transaction_date", "$createdAt"] }
-              }
-            }
-          ],
-          as: "lastPayout"
-        }
-      },
-      {
-        $unwind: {
-          path: "$lastPayout",
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $unwind: {
-          path: "$txStats",
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $project: {
-          member_id: "$Member_id",
-          Name: 1,
-          mobileno: 1,
-          bank_details: 1,
-          account_number: 1,
-          ifsc_code: 1,
-          bank_name: 1,
-          upiId: 1,
-          google_pay: 1,
-          phonepe: 1,
-          package_value: 1,
-          spackage: 1,
-          directsCount: { $size: { $ifNull: ["$directs", []] } },
-          totalPaid: { $ifNull: ["$txStats.totalDebit", 0] },
-          lastPayoutAmount: { $ifNull: ["$lastPayout.amount", 0] },
-          lastPayoutDate: "$lastPayout.date",
-          availableBalance: {
-            $subtract: [
-              { $ifNull: ["$txStats.totalCredit", 0] },
-              { $ifNull: ["$txStats.totalDebit", 0] }
-            ]
-          }
-        }
-      },
-      {
         $facet: {
           metadata: [{ $count: "total" }],
-          data: [{ $skip: skip }, { $limit: limit }]
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: "transaction_tbl",
+                let: { memberId: "$Member_id" },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: { $eq: ["$member_id", "$$memberId"] },
+                      status: { $in: ["Completed", "Pending", "Approved"] },
+                      transaction_type: { $not: /loan|top up wallet|wallet top-up|top up/i },
+                      description: { $not: /loan|top up wallet/i }
+                    }
+                  },
+                  {
+                    $group: {
+                      _id: null,
+                      totalCredit: { $sum: { $convert: { input: "$ew_credit", to: "double", onError: 0, onNull: 0 } } },
+                      totalDebit: { $sum: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } } }
+                    }
+                  }
+                ],
+                as: "txStats"
+              }
+            },
+            {
+              $lookup: {
+                from: "member_tbl",
+                localField: "Member_id",
+                foreignField: "Sponsor_code",
+                as: "directs"
+              }
+            },
+            {
+              $lookup: {
+                from: "transaction_tbl",
+                let: { memberId: "$Member_id" },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: { $eq: ["$member_id", "$$memberId"] },
+                      transaction_type: { $regex: /withdrawal/i },
+                      status: "Completed"
+                    }
+                  },
+                  { $sort: { createdAt: -1 } },
+                  { $limit: 1 },
+                  {
+                    $project: {
+                      amount: { $convert: { input: "$ew_debit", to: "double", onError: 0, onNull: 0 } },
+                      date: { $ifNull: ["$transaction_date", "$createdAt"] }
+                    }
+                  }
+                ],
+                as: "lastPayout"
+              }
+            },
+            {
+              $unwind: {
+                path: "$lastPayout",
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            {
+              $unwind: {
+                path: "$txStats",
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            {
+              $project: {
+                member_id: "$Member_id",
+                Name: 1,
+                mobileno: 1,
+                bank_details: 1,
+                account_number: 1,
+                ifsc_code: 1,
+                bank_name: 1,
+                upiId: 1,
+                google_pay: 1,
+                phonepe: 1,
+                package_value: 1,
+                spackage: 1,
+                directsCount: { $size: { $ifNull: ["$directs", []] } },
+                totalPaid: { $ifNull: ["$txStats.totalDebit", 0] },
+                lastPayoutAmount: { $ifNull: ["$lastPayout.amount", 0] },
+                lastPayoutDate: "$lastPayout.date",
+                availableBalance: {
+                  $subtract: [
+                    { $ifNull: ["$txStats.totalCredit", 0] },
+                    { $ifNull: ["$txStats.totalDebit", 0] }
+                  ]
+                }
+              }
+            }
+          ]
         }
       }
     ];
