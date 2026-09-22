@@ -64,14 +64,19 @@ app.use(
 app.options("*", cors());
 
 // DB Connection Check Middleware
-app.use((req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
+app.use(async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
+    next();
+  } catch (err) {
     return res.status(503).json({
       success: false,
       message: "Database not connected",
+      error: err.message
     });
   }
-  next();
 });
 
 const { handleWebhook } = require("./controllers/Payments/CashfreeController");
@@ -191,19 +196,24 @@ io.on("connection", (socket) => {
 
 (async () => {
   try {
-    // Connect MongoDB First
-    await connectDB();
+    if (process.env.VERCEL !== "1") {
+      // Connect MongoDB First
+      await connectDB();
 
-    // Start Cron Jobs
-    startCronJobs();
+      // Start Cron Jobs
+      startCronJobs();
 
-    // Start Express Server via HTTP server
-    server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-
+      // Start Express Server via HTTP server
+      server.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+      });
+    }
   } catch (err) {
     console.error("❌ Server startup failed:", err);
-    process.exit(1);
+    if (process.env.VERCEL !== "1") {
+      process.exit(1);
+    }
   }
 })();
+
+module.exports = app;
