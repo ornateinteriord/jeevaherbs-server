@@ -5,10 +5,10 @@ const TransactionModel = require('../models/Transaction/Transaction');
 const PayoutModel = require('../models/Payout/Payout');
 const { getNextTransactionId } = require('../utils/idGenerator');
 
-const processDailyROI = async () => {
+const processDailyROI = async (force = false) => {
   // Get the current day of the week (0 is Sunday, 6 is Saturday)
   const currentDay = moment().day();
-  if (currentDay === 0 || currentDay === 6) {
+  if (!force && (currentDay === 0 || currentDay === 6)) {
     console.log(`[Cron] Today is a weekend. Skipping Daily ROI distribution.`);
     return { success: true, message: "Skipped (Weekend)", processedCount: 0 };
   }
@@ -29,7 +29,7 @@ const processDailyROI = async () => {
 
     for (const member of activeMembers) {
       // Prevent double processing on the same day
-      if (member.last_roi_date && moment(member.last_roi_date).isSame(today, 'day')) {
+      if (!force && member.last_roi_date && moment(member.last_roi_date).isSame(today, 'day')) {
         continue;
       }
 

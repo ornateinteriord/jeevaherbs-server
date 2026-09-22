@@ -16,6 +16,7 @@ const AdminRoutes = require("./routes/AdminRoute");
 const KYCRoutes = require("./routes/KYCRoutes");
 const LocationRoutes = require("./routes/LocationRoutes");
 const ChatRoutes = require("./routes/ChatRoutes");
+const CronRoutes = require("./routes/CronRoutes");
 
 
 
@@ -132,6 +133,7 @@ app.use("/admin", AdminRoutes);
 app.use("/kyc", KYCRoutes);
 app.use("/location", LocationRoutes);
 app.use("/api/chat", ChatRoutes);
+app.use("/api/cron", CronRoutes);
 
 // ======================================================
 //        🏠 HOME & HEALTH
